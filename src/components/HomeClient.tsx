@@ -7,6 +7,7 @@ import IndicatorsGrid from "@/components/IndicatorsGrid";
 import TopHoldersTable from "@/components/TopHoldersTable";
 import SecurityFindings from "@/components/SecurityFindings";
 import { HolderInformation, ProxyAddresses, TokenOverview } from "@/components/OverviewCards";
+import SummaryBlock from "@/components/SummaryBlock";
 
 type Status = "pass" | "warn" | "fail";
 type Indicators = {
@@ -69,13 +70,6 @@ export default function HomeClient() {
               <span className="text-xs text-white/70">Overall</span>
               <span className="text-xs font-semibold text-green-400">Low Risk</span>
             </div>
-            <div className="text-xs text-white/70">
-              <a className="underline hover:text-white" href={`https://gopluslabs.io/token-security/1/${address}`} target="_blank" rel="noreferrer">GoPlus</a>
-              <span className="px-2">•</span>
-              <a className="underline hover:text-white" href={`https://solidityscan.com/quickscan/${address}/etherscan/mainnet`} target="_blank" rel="noreferrer">SolidityScan</a>
-              <span className="px-2">•</span>
-              <a className="underline hover:text-white" href={`https://www.hashdit.io/token-scanner/eth/${address}`} target="_blank" rel="noreferrer">HashDit</a>
-            </div>
           </div>
           {/* Header row: token info | centered risk | mistake form */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-stretch">
@@ -89,11 +83,6 @@ export default function HomeClient() {
             <div className="flex justify-center">
               <div className="w-full max-w-md">
                 <RiskScoreCard score={90} label="Low" />
-                <div className="mt-2 flex items-center justify-center gap-2 text-xs text-white/70">
-                  <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-red-400" /> High Risk 0</span>
-                  <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-[#ffa730]" /> Medium Risk 1</span>
-                  <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-green-400" /> No Risk 5</span>
-                </div>
               </div>
             </div>
             <section className="rounded-xl border border-white/10 bg-white/5 backdrop-blur p-4">
@@ -102,25 +91,27 @@ export default function HomeClient() {
               <button className="mt-3 px-3 py-2 rounded-md bg-white/10 text-white text-xs">Open</button>
             </section>
           </div>
-
+          <div>
+            <SummaryBlock address={address} label="Low" />
+          </div>
+          <div>
+              <IndicatorsGrid indicators={sampleIndicators} hints={sampleHints} explanations={sampleExplanations} />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-stretch">
+            <TokenOverview address={address} deployer="0x55B...8F0FA" />
+            <ProxyAddresses implementation="0x171445...6D17EB" owner="N/A" />
+            <HolderInformation />
+          </div>
           {/* Content row: big findings table | right-side stacked cards */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
+          <div className="">
             <div className="lg:col-span-2">
               <SecurityFindings />
-            </div>
-            <div className="space-y-4">
-              <TokenOverview address={address} deployer="0x55B...8F0FA" />
-              <ProxyAddresses implementation="0x171445...6D17EB" owner="N/A" />
-              <HolderInformation />
             </div>
           </div>
 
           {/* Extras */}
           <div>
-            <IndicatorsGrid indicators={sampleIndicators} hints={sampleHints} explanations={sampleExplanations} />
-            <div className="mt-4">
               <TopHoldersTable holders={sampleHolders} />
-            </div>
           </div>
         </section>
       ) : null}

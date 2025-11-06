@@ -9,8 +9,6 @@ const rows: Row[] = [
   { icon: "ok", title: "Verified Contract Source Code", category: "General Security", description: "This token contract is open source and verified" },
   { icon: "ok", title: "Token Cannot Self Destruct", category: "General Security", description: "No self-destruct function found" },
   { icon: "ok", title: "Owner/Deployer Token Balance: 0.00%", category: "General Security", description: "Low token concentration by owner" },
-  { icon: "ok", title: "No Threat Intelligence Risk", category: "General Security", description: "No significant threat intelligence risks detected" },
-  { icon: "ok", title: "Verified Implementation Source Code", category: "Proxy Security", description: "Implementation contract is verified" },
 ];
 
 export default function SecurityFindings() {
@@ -47,10 +45,6 @@ export default function SecurityFindings() {
           </tbody>
         </table>
       </div>
-      <footer className="px-4 py-3 flex items-center justify-between text-xs text-white/60 border-t border-white/10">
-        <span>Rows per page: 100</span>
-        <span>1–6 of 6</span>
-      </footer>
     </section>
   );
 }
