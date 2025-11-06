@@ -18,17 +18,17 @@ export default function RiskScoreCard({ score, label }: { score: number; label: 
   };
 
   return (
-    <section className="rounded-lg border border-gray-200 dark:border-gray-800 p-4" aria-label="Risk score">
-      <div className="flex items-center gap-4">
-        <div className="relative w-28 h-14 overflow-hidden" aria-hidden>
-          <div className="w-28 h-28 rounded-full -translate-y-7" style={gaugeStyle} />
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-xl font-semibold">
+     <section className="rounded-xl border border-white/10 bg-white/5 backdrop-blur p-6 shadow-sm" aria-label="Risk score">
+      <div className="flex items-center gap-6">
+        <div className="relative w-40 h-20 overflow-hidden" aria-hidden>
+          <div className="w-40 h-40 rounded-full -translate-y-10 shadow-inner" style={gaugeStyle} />
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-3xl font-semibold text-white">
             {clamped}
           </div>
         </div>
         <div className="flex flex-col">
-          <span className={`text-sm font-medium ${severityColor}`}>{label} risk</span>
-          <span className="text-xs text-gray-500">Score out of 100</span>
+          <span className={`text-base font-semibold ${severityColor}`}>{label} risk</span>
+          <span className="text-xs text-white/60">Score out of 100</span>
         </div>
       </div>
     </section>

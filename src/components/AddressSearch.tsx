@@ -58,7 +58,7 @@ export default function AddressSearch({ defaultValue, onSubmit }: AddressSearchP
       </label>
       <div className="flex items-stretch gap-2">
         <div className="relative flex-1">
-          <Search aria-hidden className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-500" />
+          <Search aria-hidden className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-white/60" />
           <input
             ref={inputRef}
             id="address"
@@ -69,7 +69,7 @@ export default function AddressSearch({ defaultValue, onSubmit }: AddressSearchP
             placeholder="0x1111… or 0x2222…"
             aria-invalid={!!error}
             aria-describedby="address-error"
-            className="w-full pl-10 pr-3 py-3 rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-black text-sm md:text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full pl-10 pr-3 py-3 rounded-md border border-white/10 bg-white/5 text-white placeholder:text-white/50 text-sm md:text-base focus:outline-none focus:ring-2 focus:ring-[#ffa730]"
             value={input}
             onChange={(e) => setInput(e.target.value.trim())}
             onBlur={() => setTouched(true)}
@@ -78,7 +78,7 @@ export default function AddressSearch({ defaultValue, onSubmit }: AddressSearchP
         <button
           type="submit"
           aria-label="Analyze"
-          className="px-4 py-3 rounded-md bg-blue-600 text-white text-sm md:text-base disabled:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          className="px-4 py-3 rounded-md bg-[#ffa730] hover:bg-[#ffb84d] text-black font-medium text-sm md:text-base disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#ffa730]"
           disabled={!isValid}
         >
           Analyze

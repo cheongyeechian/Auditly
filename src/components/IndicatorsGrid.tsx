@@ -24,17 +24,17 @@ const TITLES: Record<keyof Indicators, string> = {
 
 function Badge({ status }: { status: Status }) {
   if (status === "pass") return (
-    <span className="inline-flex items-center gap-1 text-green-700 bg-green-100 dark:bg-green-900/40 dark:text-green-300 px-2 py-0.5 rounded text-xs">
+    <span className="inline-flex items-center gap-1 text-green-400 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full text-xs">
       <CheckCircle2 className="h-4 w-4" /> PASS
     </span>
   );
   if (status === "warn") return (
-    <span className="inline-flex items-center gap-1 text-yellow-800 bg-yellow-100 dark:bg-yellow-900/40 dark:text-yellow-300 px-2 py-0.5 rounded text-xs">
+    <span className="inline-flex items-center gap-1 text-[#ffa730] bg-white/5 border border-white/10 px-2 py-0.5 rounded-full text-xs">
       <AlertTriangle className="h-4 w-4" /> WARN
     </span>
   );
   return (
-    <span className="inline-flex items-center gap-1 text-red-700 bg-red-100 dark:bg-red-900/40 dark:text-red-300 px-2 py-0.5 rounded text-xs">
+    <span className="inline-flex items-center gap-1 text-red-400 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full text-xs">
       <XCircle className="h-4 w-4" /> FAIL
     </span>
   );
@@ -53,11 +53,11 @@ export default function IndicatorsGrid({
   return (
     <section aria-label="Key indicators" className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
       {entries.map(([key, status]) => (
-        <article key={key} className="rounded-lg border border-gray-200 dark:border-gray-800 p-3">
+        <article key={key} className="rounded-xl border border-white/10 bg-white/5 backdrop-blur p-4">
           <div className="flex items-start justify-between gap-2">
             <div>
-              <h3 className="text-sm font-semibold">{TITLES[key]}</h3>
-              <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">{hints[key]}</p>
+              <h3 className="text-sm font-semibold text-white">{TITLES[key]}</h3>
+              <p className="text-xs text-white/70 mt-1">{hints[key]}</p>
             </div>
             <Badge status={status} />
           </div>
