@@ -13,7 +13,7 @@ const rows: Row[] = [
 
 export default function SecurityFindings() {
   return (
-    <section className="rounded-xl border border-white/10 bg-white/5 backdrop-blur" aria-label="Security Findings">
+    <section className="rounded-xl border [border-color:var(--border)] bg-[var(--card)]" aria-label="Security Findings">
       <header className="px-4 py-3 border-b border-white/10 flex items-center gap-2">
         <span className="i-lucide-shield text-white/80" />
         <h2 className="text-sm font-semibold text-white">Security Findings</h2>
@@ -29,12 +29,12 @@ export default function SecurityFindings() {
           </thead>
           <tbody>
             {rows.map((r, i) => (
-              <tr key={i} className="border-t border-white/10 text-white/90">
+              <tr key={i} className="border-t [border-color:var(--border)] text-white/90">
                 <td className="px-4 py-3 flex items-center gap-2">
                   {r.icon === "ok" ? (
-                    <CheckCircle2 className="h-4 w-4 text-green-400" />
+                    <CheckCircle2 className="h-4 w-4 text-[var(--pass)]" />
                   ) : (
-                    <AlertTriangle className="h-4 w-4 text-[#ffa730]" />
+                    <AlertTriangle className="h-4 w-4 text-[var(--warn)]" />
                   )}
                   {r.title}
                 </td>

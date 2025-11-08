@@ -18,11 +18,11 @@ export default function RiskScoreCard({ score, label }: { score: number; label: 
   };
 
   return (
-     <section className="rounded-xl border border-white/10 bg-white/5 backdrop-blur p-6 shadow-sm" aria-label="Risk score">
+     <section className="rounded-xl border [border-color:var(--border)] bg-[var(--card)] p-6 shadow-sm" aria-label="Risk score">
       <div className="flex items-center gap-6">
         <div className="relative w-40  overflow-hidden" aria-hidden>
           <div className="w-40 h-40 rounded-full -translate-y-10 shadow-inner" style={gaugeStyle} />
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-3xl font-semibold text-white">
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-3xl font-semibold text-[#E6EEF3]">
             {clamped}
           </div>
         </div>

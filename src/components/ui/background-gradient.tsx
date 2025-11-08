@@ -77,7 +77,7 @@ export const BackgroundGradientAnimation = ({
           className="absolute w-[40%] h-[40%] bottom-0 left-0 animate-fourth"
           style={{
             background:
-              "radial-gradient(circle at center, rgba(255, 185, 36, 0.5) 0%, rgba(255, 185, 36, 0) 70%)",
+              "radial-gradient(circle at center, rgba(255, 185, 36, 0.35) 0%, rgba(255, 185, 36, 0) 70%)",
             opacity: 0.6,
           }}
         />
@@ -87,7 +87,7 @@ export const BackgroundGradientAnimation = ({
           className="absolute w-[100%] h-[100%] top-[-50%] right-[-50%] animate-second"
           style={{
             background:
-              "radial-gradient(circle at center, rgba(255, 185, 36, 0.8) 0%, rgba(255, 185, 36, 0) 70%)",
+              "radial-gradient(circle at center, rgba(255, 185, 36, 0.45) 0%, rgba(255, 185, 36, 0) 70%)",
             opacity: 0.6,
           }}
         />
