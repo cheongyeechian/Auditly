@@ -15,6 +15,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Auditly",
   description: "Check your contract risk before investing.",
+  icons: {
+    icon: "/logo.png",
+  }
 };
 
 export default function RootLayout({
