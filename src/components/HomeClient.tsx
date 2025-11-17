@@ -8,6 +8,7 @@ import TopHoldersTable from "@/components/TopHoldersTable";
 import SecurityFindings from "@/components/SecurityFindings";
 import { HolderInformation, ProxyAddresses, TokenOverview } from "@/components/OverviewCards";
 import SummaryBlock from "@/components/SummaryBlock";
+import { GradientCard } from "@/components/ui/GradientCard";
 
 type Status = "pass" | "warn" | "fail";
 type Indicators = {
@@ -21,6 +22,7 @@ type Indicators = {
 
 export default function HomeClient() {
   const [address, setAddress] = useState<string | null>(null);
+  const hasAddress = Boolean(address);
 
   const sampleIndicators: Indicators = {
     verifiedSource: "pass",
@@ -57,13 +59,25 @@ export default function HomeClient() {
   ];
 
   return (
-    <div className="w-full max-w-5xl mx-auto flex flex-col items-center gap-6">
-      <h1 className="text-2xl md:text-[60px] font-semibold text-center text-[#ffa730]">Risk Checker</h1>
-      <div className="w-full max-w-xl">
-        <AddressSearch defaultValue="0x1111111111111111111111111111111111111111" onSubmit={setAddress} />
+    <div
+      className={`w-full max-w-5xl mx-auto flex flex-col items-center gap-6 transition-all duration-300 ${
+        hasAddress ? "py-8 md:py-10" : "min-h-screen justify-center"
+      }`}
+    >
+      <div className={`flex w-full flex-col items-center gap-6 ${hasAddress ? "" : " text-center"}`}>
+        <h1
+          className={`text-center text-2xl font-semibold text-[#ffa730] transition-all duration-300 ${
+            hasAddress ? "md:text-[72px]" : "md:text-[100px]"
+          }`}
+        >
+          Risk Checker
+        </h1>
+        <div className="w-full max-w-xl">
+          <AddressSearch defaultValue="0x1111111111111111111111111111111111111111" onSubmit={setAddress} />
+        </div>
       </div>
 
-      {address ? (
+      {hasAddress ? (
         <section className="w-full space-y-6" aria-label="Risk summary">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 backdrop-blur px-3 py-1">
@@ -72,41 +86,38 @@ export default function HomeClient() {
             </div>
           </div>
           {/* Header row: token info | centered risk | mistake form */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-stretch">
-            <section className="rounded-xl border border-white/10 bg-white/5 backdrop-blur p-4">
-              <h3 className="text-sm font-semibold text-white mb-2">Token</h3>
-              <div className="text-xs text-white/70">Liquid staked Ether 2.0</div>
-              <div className="text-sm font-medium">STETH</div>
-              <div className="mt-3 text-xs text-white/60">Price (USD)</div>
-              <div className="text-sm">Unknown</div>
-            </section>
+          <div className="grid grid-cols-1 items-stretch gap-4 md:grid-cols-2">
+            <GradientCard title="Token" contentClassName="mt-2 space-y-1">
+              <div className="text-sm text-white/80">Liquid staked Ether 2.0</div>
+              <div className="text-sm font-medium text-white">STETH</div>
+              <div className="pt-2 text-sm text-white/60">Price (USD)</div>
+              <div className="text-sm text-white">Unknown</div>
+            </GradientCard>
             <div className="flex justify-center">
               <div className="w-full max-w-md">
                 <RiskScoreCard score={90} label="Low" />
               </div>
             </div>
-            <section className="rounded-xl border border-white/10 bg-white/5 backdrop-blur p-4">
-              <h3 className="text-sm font-semibold text-white mb-2">Mistake Form</h3>
-              <p className="text-xs text-white/70">Believe there is a mistake? Fill out this form.</p>
-              <button className="mt-3 px-3 py-2 rounded-md bg-white/10 text-white text-xs">Open</button>
-            </section>
           </div>
           <div>
-            <SummaryBlock address={address} label="Low" />
+            <SummaryBlock address={address!} label="Low" />
           </div>
-          <div>
-              <IndicatorsGrid indicators={sampleIndicators} hints={sampleHints} explanations={sampleExplanations} />
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-stretch">
-            <TokenOverview address={address} deployer="0x55B...8F0FA" />
-            <ProxyAddresses implementation="0x171445...6D17EB" owner="N/A" />
-            <HolderInformation />
-          </div>
-          {/* Content row: big findings table | right-side stacked cards */}
+                    
+           {/* Content row: big findings table | right-side stacked cards */}
           <div className="">
             <div className="lg:col-span-2">
               <SecurityFindings />
             </div>
+          </div>
+          
+          <div>
+              <IndicatorsGrid indicators={sampleIndicators} hints={sampleHints} explanations={sampleExplanations} />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-stretch">
+            <TokenOverview address={address!} deployer="0x55B...8F0FA" />
+            <ProxyAddresses implementation="0x171445...6D17EB" owner="N/A" />
+            <HolderInformation />
           </div>
 
           {/* Extras */}

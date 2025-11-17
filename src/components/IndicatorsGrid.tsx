@@ -23,18 +23,22 @@ const TITLES: Record<keyof Indicators, string> = {
 };
 
 function Badge({ status }: { status: Status }) {
-  if (status === "pass") return (
-    <span className="inline-flex items-center gap-1 text-[var(--pass)] bg-[#111111] border [border-color:var(--border)] px-2 py-0.5 rounded-full text-xs">
-      <CheckCircle2 className="h-4 w-4" /> PASS
-    </span>
-  );
-  if (status === "warn") return (
-    <span className="inline-flex items-center gap-1 text-[var(--warn)] bg-[#111111] border [border-color:var(--border)] px-2 py-0.5 rounded-full text-xs">
-      <AlertTriangle className="h-4 w-4" /> WARN
-    </span>
-  );
+  const baseClass =
+    "inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-xs";
+  if (status === "pass")
+    return (
+      <span className={`${baseClass} text-[var(--pass)]`}>
+        <CheckCircle2 className="h-4 w-4" /> PASS
+      </span>
+    );
+  if (status === "warn")
+    return (
+      <span className={`${baseClass} text-[var(--warn)]`}>
+        <AlertTriangle className="h-4 w-4" /> WARN
+      </span>
+    );
   return (
-    <span className="inline-flex items-center gap-1 text-[var(--fail)] bg-[#111111] border [border-color:var(--border)] px-2 py-0.5 rounded-full text-xs">
+    <span className={`${baseClass} text-[var(--fail)]`}>
       <XCircle className="h-4 w-4" /> FAIL
     </span>
   );
@@ -51,17 +55,22 @@ export default function IndicatorsGrid({
 }) {
   const entries = Object.entries(indicators) as [keyof Indicators, Status][];
   return (
-    <section aria-label="Key indicators" className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+    <section aria-label="Key indicators" className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
       {entries.map(([key, status]) => (
-        <article key={key} className="rounded-xl border [border-color:var(--border)] bg-[var(--card)] p-4">
-          <div className="flex items-start justify-between gap-2">
+        <article
+          key={key}
+          className="rounded-2xl border border-white/10 bg-black/90 p-5 text-white shadow-[0px_12px_30px_rgba(0,0,0,0.35)]"
+        >
+          <div className="flex items-start justify-between gap-3">
             <div>
-              <h3 className="text-sm font-semibold text-white">{TITLES[key]}</h3>
-              <p className="text-xs text-white/70 mt-1">{hints[key]}</p>
+              <h3 className="text-sm font-semibold text-white uppercase tracking-wide">
+                {TITLES[key]}
+              </h3>
+              <p className="mt-1 text-xs text-white/70">{hints[key]}</p>
             </div>
             <Badge status={status} />
           </div>
-          <div className="mt-2">
+          <div className="mt-4">
             <ExplainDrawer title={TITLES[key]} content={explanations[key]} />
           </div>
         </article>

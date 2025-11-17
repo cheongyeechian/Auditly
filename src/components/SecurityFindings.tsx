@@ -1,6 +1,7 @@
 "use client";
 
 import { CheckCircle2, AlertTriangle } from "lucide-react";
+import { GradientCard } from "@/components/ui/GradientCard";
 
 type Row = { icon: "ok" | "warn"; title: string; category: string; description: string };
 
@@ -13,12 +14,13 @@ const rows: Row[] = [
 
 export default function SecurityFindings() {
   return (
-    <section className="rounded-xl border [border-color:var(--border)] bg-[var(--card)]" aria-label="Security Findings">
-      <header className="px-4 py-3 border-b border-white/10 flex items-center gap-2">
-        <span className="i-lucide-shield text-white/80" />
-        <h2 className="text-sm font-semibold text-white">Security Findings</h2>
-      </header>
-      <div className="overflow-x-auto">
+    <GradientCard
+      title="Security Findings"
+      icon={<span className="i-lucide-shield text-white/80" />}
+      contentClassName="mt-0"
+      aria-label="Security Findings"
+    >
+      <div className="overflow-x-auto rounded-xl border border-white/10 bg-white/5 backdrop-blur">
         <table className="min-w-full text-sm">
           <thead>
             <tr className="text-left text-white/70">
@@ -29,7 +31,7 @@ export default function SecurityFindings() {
           </thead>
           <tbody>
             {rows.map((r, i) => (
-              <tr key={i} className="border-t [border-color:var(--border)] text-white/90">
+              <tr key={i} className="border-t border-white/10 text-white/90">
                 <td className="px-4 py-3 flex items-center gap-2">
                   {r.icon === "ok" ? (
                     <CheckCircle2 className="h-4 w-4 text-[var(--pass)]" />
@@ -45,7 +47,7 @@ export default function SecurityFindings() {
           </tbody>
         </table>
       </div>
-    </section>
+    </GradientCard>
   );
 }
 
