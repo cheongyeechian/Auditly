@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Risk Checker",
+  title: "Auditly",
   description: "Check your contract risk before investing.",
 };
 

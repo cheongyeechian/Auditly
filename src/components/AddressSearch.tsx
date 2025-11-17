@@ -69,7 +69,7 @@ export default function AddressSearch({ defaultValue, onSubmit }: AddressSearchP
             placeholder="0x1111… or 0x2222…"
             aria-invalid={!!error}
             aria-describedby="address-error"
-            className="w-full pl-10 pr-3 py-3 rounded-md border [border-color:var(--border)] bg-[var(--card)] text-white placeholder:text-[var(--text-secondary)] text-sm md:text-base focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+            className="w-full pl-10 pr-3 py-3 rounded-xl border [border-color:var(--border)] bg-[var(--card)] text-white placeholder:text-[var(--text-secondary)] text-sm md:text-base focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
             value={input}
             onChange={(e) => setInput(e.target.value.trim())}
             onBlur={() => setTouched(true)}
@@ -78,7 +78,7 @@ export default function AddressSearch({ defaultValue, onSubmit }: AddressSearchP
         <button
           type="submit"
           aria-label="Analyze"
-          className="px-4 py-3 rounded-md bg-[var(--accent)] hover:brightness-110 text-black font-medium text-sm md:text-base disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--accent)]"
+          className="px-4 py-3 rounded-xl bg-[var(--accent)] hover:brightness-110 text-black font-medium text-sm md:text-base disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[var(--accent)]"
           disabled={!isValid}
         >
           Analyze
@@ -89,9 +89,6 @@ export default function AddressSearch({ defaultValue, onSubmit }: AddressSearchP
           {error}
         </p>
       ) : null}
-      <p className="mt-2 text-xs text-gray-500">
-        Examples: 0x1111… (safe), 0x2222… (risky token), 0x3333… (unverified)
-      </p>
     </form>
   );
 }
