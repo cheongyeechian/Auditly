@@ -4,22 +4,12 @@ import { CheckCircle2, AlertTriangle, XCircle } from "lucide-react";
 import ExplainDrawer from "./ExplainDrawer";
 
 type Status = "pass" | "warn" | "fail";
-type Indicators = {
-  verifiedSource: Status;
-  proxy: Status;
-  ownerPrivileges: Status;
-  dangerousFunctions: Status;
-  liquidity: Status;
-  holderDistribution: Status;
-};
-
-const TITLES: Record<keyof Indicators, string> = {
-  verifiedSource: "Verified Source",
-  proxy: "Proxy / Upgradeable",
-  ownerPrivileges: "Owner Privileges",
-  dangerousFunctions: "Dangerous Functions",
-  liquidity: "Liquidity Status",
-  holderDistribution: "Holder Distribution",
+type IndicatorCard = {
+  key: string;
+  title: string;
+  status: Status;
+  hint: string;
+  explanation: string;
 };
 
 function Badge({ status }: { status: Status }) {
@@ -44,34 +34,25 @@ function Badge({ status }: { status: Status }) {
   );
 }
 
-export default function IndicatorsGrid({
-  indicators,
-  hints,
-  explanations,
-}: {
-  indicators: Indicators;
-  hints: Record<keyof Indicators, string>;
-  explanations: Record<keyof Indicators, string>;
-}) {
-  const entries = Object.entries(indicators) as [keyof Indicators, Status][];
+export default function IndicatorsGrid({ items }: { items: IndicatorCard[] }) {
   return (
     <section aria-label="Key indicators" className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-      {entries.map(([key, status]) => (
+      {items.map((item) => (
         <article
-          key={key}
+          key={item.key}
           className="rounded-2xl border border-white/10 bg-black/90 p-5 text-white shadow-[0px_12px_30px_rgba(0,0,0,0.35)]"
         >
           <div className="flex items-start justify-between gap-3">
             <div>
               <h3 className="text-sm font-semibold text-white uppercase tracking-wide">
-                {TITLES[key]}
+                {item.title}
               </h3>
-              <p className="mt-1 text-xs text-white/70">{hints[key]}</p>
+              <p className="mt-1 text-xs text-white/70">{item.hint}</p>
             </div>
-            <Badge status={status} />
+            <Badge status={item.status} />
           </div>
           <div className="mt-4">
-            <ExplainDrawer title={TITLES[key]} content={explanations[key]} />
+            <ExplainDrawer title={item.title} content={item.explanation} />
           </div>
         </article>
       ))}
