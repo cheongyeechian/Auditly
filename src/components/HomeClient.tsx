@@ -9,7 +9,9 @@ import SecurityFindings from "@/components/SecurityFindings";
 import { HolderInformation, ProxyAddresses, TokenOverview } from "@/components/OverviewCards";
 import SummaryBlock from "@/components/SummaryBlock";
 import { GradientCard } from "@/components/ui/GradientCard";
-import { ChevronDown } from "lucide-react";
+import { BackgroundGradientAnimation } from "@/components/ui/background-gradient";
+import { GridPattern } from "@/components/ui/GridPattern";
+import { ChevronDown, ShieldCheck, AlertTriangle } from "lucide-react";
 import type { AnalysisResponse, IndicatorKey } from "@/types/analysis";
 
 type Status = "pass" | "warn" | "fail";
@@ -172,11 +174,25 @@ export default function HomeClient() {
       : "text-white/70";
 
   return (
-    <div className="w-full max-w-5xl mx-auto flex flex-col items-center gap-6 py-8 md:py-10 transition-all duration-300">
+    <div className="relative min-h-screen w-full overflow-x-hidden bg-black text-white selection:bg-[#ffa730]/30">
+      <div className="fixed inset-0 z-0 pointer-events-none">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_var(--tw-gradient-stops))] from-[#ffa730]/15 via-black/0 to-black/0" />
+        <GridPattern
+          width={50}
+          height={50}
+          x={-1}
+          y={-1}
+          className="opacity-[0.2] [mask-image:radial-gradient(800px_circle_at_center,white,transparent)]"
+        />
+      </div>
+      <div className="relative z-10 w-full max-w-5xl mx-auto flex flex-col items-center gap-6 py-8 md:py-10 transition-all duration-300 px-4">
       <div className={`flex w-full flex-col items-center gap-6 ${hasAddress ? "" : "text-center"}`}>
-        <div className="text-lg uppercase tracking-wide text-[#ffa730]">Audit with</div>
+        <div className="inline-flex items-center gap-2 rounded-full border border-[#ffa730]/30 bg-[#ffa730]/10 px-4 py-1.5 backdrop-blur-sm">
+          <ShieldCheck className="h-4 w-4 text-[#ffa730]" />
+          <span className="text-sm font-medium uppercase tracking-wide text-[#ffa730]">Audit with Confidence</span>
+        </div>
         <h1
-          className={`text-center text-[80px] font-semibold text-[#ffa730] transition-all duration-300 md:text-[90px]`}
+          className={`text-center text-[80px] font-bold tracking-tighter bg-gradient-to-b from-[#ffa730] via-[#ffcf7a] to-[#ffa730] bg-clip-text text-transparent drop-shadow-[0_0_30px_rgba(255,167,48,0.3)] transition-all duration-300 md:text-[100px]`}
         >
           Auditly
         </h1>
@@ -189,7 +205,7 @@ export default function HomeClient() {
                   aria-haspopup="listbox"
                   aria-expanded={isChainMenuOpen}
                   onClick={() => setIsChainMenuOpen((prev) => !prev)}
-                  className="flex w-full items-center justify-between rounded-2xl border border-[#ffa730] bg-black/90 px-4 py-3 text-sm font-semibold uppercase tracking-wide text-[#ffa730] shadow-[0_0_25px_rgba(255,167,48,0.2)] transition hover:border-[#ffb85b] hover:text-[#ffb85b] focus:outline-none focus:ring-2 focus:ring-[#ffa730]/60"
+                  className="flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold uppercase tracking-wide text-[#ffa730] shadow-lg backdrop-blur-md transition hover:bg-white/10 hover:border-[#ffa730]/50 focus:outline-none focus:ring-2 focus:ring-[#ffa730]/50"
                 >
                   {selectedChain.label}
                   <span className={`transition ${isChainMenuOpen ? "rotate-180" : ""}`}><ChevronDown className="w-4 h-4" /></span>
@@ -198,7 +214,7 @@ export default function HomeClient() {
                   <ul
                     role="listbox"
                     aria-activedescendant={`chain-${selectedChain.value}`}
-                    className="absolute left-0 right-0 z-20 mt-2 overflow-hidden rounded-2xl border border-[#ffa730]/60 bg-black/95 text-sm text-white shadow-[0px_20px_45px_rgba(0,0,0,0.45)] backdrop-blur"
+                    className="absolute left-0 right-0 z-20 mt-2 overflow-hidden rounded-2xl border border-white/10 bg-[#0a0a0a]/95 text-sm text-white shadow-2xl backdrop-blur-xl"
                   >
                     {CHAIN_OPTIONS.map((option) => (
                       <li key={option.value}>
@@ -236,20 +252,24 @@ export default function HomeClient() {
       </div>
 
       {!hasAddress ? (
-        <div className="w-full space-y-10">
-          <section className="w-full rounded-3xl border border-white/15 bg-black/60 p-6 text-white shadow-[0px_12px_30px_rgba(0,0,0,0.35)]">
-            <div className="flex flex-col gap-6">
-              <div className="flex-col space-y-3">
-                <p className="text-md uppercase tracking-wide text-[#ffa730]">How it works</p>
-                <h2 className="text-3xl font-semibold">See on-chain red flags in seconds</h2>
-                <p className="text-white/70">
+        <div className="w-full space-y-10 animate-in fade-in slide-in-from-bottom-8 duration-700 fill-mode-forwards">
+          <section className="w-full rounded-3xl border border-white/10 bg-white/5 p-8 text-white shadow-2xl backdrop-blur-md transition-all duration-500 hover:border-[#ffa730]/20">
+            <div className="flex flex-col gap-8">
+              <div className="flex-col space-y-4">
+                <div className="flex items-center gap-2">
+                    <div className="h-8 w-1 bg-[#ffa730] rounded-full" />
+                    <p className="text-md uppercase tracking-wide text-[#ffa730] font-semibold">How it works</p>
+                </div>
+                <h2 className="text-4xl font-bold tracking-tight">See on-chain red flags in seconds</h2>
+                <p className="text-lg text-white/60 max-w-2xl leading-relaxed">
                   Paste any token contract address and we&apos;ll run automated checks on liquidity, upgradeability,
                   privileged roles, and more. 
                 </p>
               </div>
-              <div className="flex-col">
+              <div className="flex-col group relative rounded-2xl overflow-hidden border border-white/10 bg-black/50 shadow-2xl">
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-60 pointer-events-none z-10" />
                 <video
-                  className="aspect-video w-full rounded-2xl border border-white/15 bg-black object-cover"
+                  className="aspect-video w-full object-cover opacity-90 transition-opacity duration-500 group-hover:opacity-100"
                   src="/demo.mov"
                   controls
                   playsInline
@@ -263,20 +283,24 @@ export default function HomeClient() {
             </div>
           </section>
 
-          <section className="w-full rounded-3xl border border-white/15 bg-black/60 p-6 text-white shadow-[0px_12px_30px_rgba(0,0,0,0.35)]">
-            <p className="text-md uppercase tracking-wide text-[#ffa730]">Life saver</p>
-            <h2 className="mt-2 text-3xl font-semibold">Important indicator you should know about</h2>
-            <p className="mt-2 text-white/70">
+          <section className="w-full rounded-3xl border border-white/10 bg-white/5 p-8 text-white shadow-2xl backdrop-blur-md transition-all duration-500 hover:border-[#ffa730]/20">
+             <div className="flex items-center gap-2 mb-4">
+                <AlertTriangle className="h-5 w-5 text-[#ffa730]" />
+                <p className="text-md uppercase tracking-wide text-[#ffa730] font-semibold">Life saver</p>
+            </div>
+            <h2 className="mt-2 text-3xl font-bold tracking-tight">Important indicators you should know about</h2>
+            <p className="mt-4 text-lg text-white/60 max-w-2xl">
               You should know about these important indicators before you invest.
             </p>
-            <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="mt-8 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
               {MARKETING_INDICATORS.map((item) => (
                 <article
                   key={item.title}
-                  className="rounded-2xl border border-white/5 bg-white/5 p-4 backdrop-blur-sm"
+                  className="group relative rounded-2xl border border-white/5 bg-white/5 p-5 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:bg-white/10 hover:border-[#ffa730]/30 hover:shadow-xl"
                 >
-                  <h3 className="text-sm font-semibold uppercase tracking-wide text-white">{item.title}</h3>
-                  <p className="mt-2 text-sm text-white/70">{item.description}</p>
+                  <div className="absolute inset-0 bg-gradient-to-br from-[#ffa730]/0 to-[#ffa730]/5 opacity-0 transition-opacity duration-300 group-hover:opacity-100 rounded-2xl" />
+                  <h3 className="text-sm font-bold uppercase tracking-wide text-white group-hover:text-[#ffa730] transition-colors">{item.title}</h3>
+                  <p className="mt-3 text-sm text-white/60 leading-relaxed group-hover:text-white/80 transition-colors">{item.description}</p>
                 </article>
               ))}
             </div>
@@ -355,6 +379,7 @@ export default function HomeClient() {
           </div>
         </section>
       ) : null}
+      </div>
     </div>
   );
 }

@@ -40,7 +40,7 @@ export default function IndicatorsGrid({ items }: { items: IndicatorCard[] }) {
       {items.map((item) => (
         <article
           key={item.key}
-          className="rounded-2xl border border-white/10 bg-black/90 p-5 text-white shadow-[0px_12px_30px_rgba(0,0,0,0.35)]"
+          className="rounded-2xl border border-white/20 bg-black/90 p-5 text-white shadow-[0px_12px_30px_rgba(0,0,0,0.35)]"
         >
           <div className="flex items-start justify-between gap-3">
             <div>

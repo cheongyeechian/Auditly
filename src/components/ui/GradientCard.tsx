@@ -20,7 +20,7 @@ export function GradientCard({
   return (
     <div
       className={cn(
-        "group relative overflow-hidden rounded-2xl border border-white/10 bg-black text-white shadow-[0px_18px_40px_rgba(255,167,48,0.25)]",
+        "group relative overflow-hidden rounded-2xl border border-white/20 bg-black text-white shadow-[0px_18px_40px_rgba(255,167,48,0.25)]",
         className
       )}
       {...rest}

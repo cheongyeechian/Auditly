@@ -25,7 +25,7 @@ export default function RiskScoreCard({
   const gaugeStyle: CSSProperties = {
     backgroundImage: `
       conic-gradient(
-        from 0deg,
+        from 90deg,
         #facc15 0deg,
         #fbbf24 ${angle * 0.4}deg,
         #f59e0b ${angle}deg,

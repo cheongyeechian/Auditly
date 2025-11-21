@@ -8,7 +8,7 @@ function CardContainer({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-white/10 bg-black/90 p-5 text-white shadow-[0px_12px_30px_rgba(0,0,0,0.35)]">
+    <section className="rounded-2xl border border-white/20 bg-black/90 p-5 text-white shadow-[0px_12px_30px_rgba(0,0,0,0.35)]">
       <header className="mb-4">
         <h3 className="text-sm md:text-lg font-semibold text-white uppercase tracking-wide">
           {title}
