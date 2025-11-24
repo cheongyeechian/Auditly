@@ -174,7 +174,7 @@ export default function HomeClient() {
       : "text-white/70";
 
   return (
-    <div className="relative min-h-screen w-full overflow-x-hidden bg-black text-white selection:bg-[#ffa730]/30">
+    <div className="relative min-h-screen w-full overflow-x-hidden  text-white selection:bg-[#ffa730]/30">
       <div className="fixed inset-0 z-0 pointer-events-none">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_var(--tw-gradient-stops))] from-[#ffa730]/15 via-black/0 to-black/0" />
         <GridPattern

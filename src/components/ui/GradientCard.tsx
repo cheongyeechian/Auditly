@@ -34,7 +34,7 @@ export function GradientCard({
         <header className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             {icon ? <span className="text-lg">{icon}</span> : null}
-            <h3 className="text-sm md:text-xl lg:text-2xl font-semibold text-[#FFC323] mb-2">{title}</h3>
+            <h3 className="text-sm md:text-lg font-semibold uppercase tracking-[0.3em] text-[#f6d488]/80">{title}</h3>
           </div>
           {headerRight}
         </header>
