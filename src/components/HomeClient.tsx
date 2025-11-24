@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { jsPDF } from "jspdf";
 import AddressSearch from "@/components/AddressSearch";
 import RiskScoreCard from "@/components/RiskScoreCard";
 import IndicatorsGrid from "@/components/IndicatorsGrid";
@@ -71,6 +72,7 @@ export default function HomeClient() {
   const [analysis, setAnalysis] = useState<AnalysisResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
   const chainDropdownRef = useRef<HTMLDivElement | null>(null);
   const hasAddress = Boolean(address);
   const selectedChainValue = selectedChain.value;
@@ -172,6 +174,27 @@ export default function HomeClient() {
     : isLoading
       ? "text-amber-300"
       : "text-white/70";
+
+  const handleExportReport = async () => {
+    if (!analysis || !address) return;
+    setIsExporting(true);
+    try {
+      const doc = generateReportPdf({
+        analysis,
+        indicatorItems,
+        securityRows,
+        address,
+        chainLabel: selectedChain.label,
+      });
+      const filename = `auditly-${analysis.token?.symbol ?? address}-report.pdf`;
+      doc.save(filename);
+    } catch (err) {
+      console.error(err);
+      window.alert("Failed to export report. Please try again.");
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   return (
     <div className="relative min-h-screen w-full overflow-x-hidden  text-white selection:bg-[#ffa730]/30">
@@ -310,19 +333,29 @@ export default function HomeClient() {
 
       {hasAddress ? (
         <section className="w-full space-y-6" aria-label="Risk summary">
-          <div className="flex flex-col gap-3">
-            <div className="inline-flex w-fit items-center gap-2 rounded-full border border-white/10 bg-white/5 backdrop-blur px-3 py-1">
-              <span className="text-xs text-white/70">Overall</span>
-              <span className={`text-xs font-semibold ${badgeColor}`}>{badgeLabel}</span>
-            </div>
-            {error ? (
-              <div className="rounded-2xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-                {error}
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="flex flex-col gap-3">
+              <div className="inline-flex w-fit items-center gap-2 rounded-full border border-white/10 bg-white/5 backdrop-blur px-3 py-1">
+                <span className="text-xs text-white/70">Overall</span>
+                <span className={`text-xs font-semibold ${badgeColor}`}>{badgeLabel}</span>
               </div>
-            ) : null}
-            {isLoading ? (
-              <div className="text-sm text-white/60">Fetching latest on-chain data...</div>
-            ) : null}
+              {error ? (
+                <div className="rounded-2xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+                  {error}
+                </div>
+              ) : null}
+              {isLoading ? (
+                <div className="text-sm text-white/60">Fetching latest on-chain data...</div>
+              ) : null}
+            </div>
+            <button
+              type="button"
+              onClick={handleExportReport}
+              disabled={!analysis || isExporting}
+              className="inline-flex items-center justify-center rounded-2xl border border-[#ffa730]/40 bg-[#ffa730]/10 px-5 py-3 text-sm font-semibold uppercase tracking-wide text-[#ffa730] shadow-lg transition hover:bg-[#ffa730]/20 hover:border-[#ffa730]/70 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/5 disabled:text-white/40"
+            >
+              {isExporting ? "Preparing PDF..." : "Export PDF"}
+            </button>
           </div>
           {/* Header row: token info | centered risk | mistake form */}
           <div className="grid grid-cols-1 items-stretch gap-4 md:grid-cols-2">
@@ -388,4 +421,188 @@ function backendStatusToClient(status?: "PASS" | "WARN" | "FAIL"): Status {
   if (status === "PASS") return "pass";
   if (status === "FAIL") return "fail";
   return "warn";
+}
+
+type IndicatorItemForExport = {
+  key: IndicatorKey;
+  title: string;
+  status: Status;
+  hint?: string;
+  explanation?: string;
+};
+
+type SecurityRow = {
+  title: string;
+  category: string;
+  description: string;
+  status: Status;
+};
+
+function generateReportPdf({
+  analysis,
+  indicatorItems,
+  securityRows,
+  address,
+  chainLabel,
+}: {
+  analysis: AnalysisResponse;
+  indicatorItems: IndicatorItemForExport[];
+  securityRows: SecurityRow[];
+  address: string;
+  chainLabel: string;
+}) {
+  const doc = new jsPDF({ unit: "pt", format: "a4" });
+  const margin = 40;
+  const usableWidth = doc.internal.pageSize.getWidth() - margin * 2;
+  const pageHeight = doc.internal.pageSize.getHeight();
+  let cursorY = margin;
+  const lineHeight = 16;
+
+  const ensureSpace = (height: number) => {
+    if (cursorY + height > pageHeight - margin) {
+      doc.addPage();
+      cursorY = margin;
+    }
+  };
+
+  const addLineBreaks = (count = 1) => {
+    const height = count * lineHeight;
+    ensureSpace(height);
+    cursorY += height;
+  };
+
+  const addHeading = (text: string) => {
+    addLineBreaks();
+    ensureSpace(30);
+    doc.setFont("timesnewroman", "bold");
+    doc.setFontSize(18);
+    doc.text(text, margin, cursorY);
+    cursorY += 26;
+    doc.setFont("timesnewroman", "normal");
+    doc.setFontSize(11);
+  };
+
+  const addSubheading = (text: string) => {
+    ensureSpace(24);
+    doc.setFont("timesnewroman", "bold");
+    doc.setFontSize(13);
+    doc.text(text, margin, cursorY);
+    cursorY += 18;
+    doc.setFont("timesnewroman", "normal");
+    doc.setFontSize(11);
+  };
+
+  const addParagraph = (text: string) => {
+    const lines = doc.splitTextToSize(text, usableWidth);
+    const blockHeight = lines.length * lineHeight;
+    ensureSpace(blockHeight);
+    doc.text(lines, margin, cursorY);
+    cursorY += blockHeight + 8;
+  };
+
+  const addList = (items: string[], emptyFallback = "Not available.") => {
+    if (!items.length) {
+      addParagraph(emptyFallback);
+      return;
+    }
+    for (const item of items) {
+      const lines = doc.splitTextToSize(`• ${item}`, usableWidth);
+      const blockHeight = lines.length * lineHeight;
+      ensureSpace(blockHeight);
+      doc.text(lines, margin, cursorY);
+      cursorY += blockHeight;
+    }
+    cursorY += 8;
+  };
+
+  const addKeyValue = (entries: Array<[string, string]>) => {
+    for (const [label, value] of entries) {
+      const content = `${label}: ${value}`;
+      const lines = doc.splitTextToSize(content, usableWidth);
+      const blockHeight = lines.length * lineHeight;
+      ensureSpace(blockHeight);
+      doc.text(lines, margin, cursorY);
+      cursorY += blockHeight;
+    }
+    cursorY += 6;
+  };
+
+  const now = new Date().toLocaleString();
+  doc.setFont("timesnewroman", "bold");
+  doc.setFontSize(20);
+  doc.text("Auditly Smart Contract Report", margin, cursorY);
+  cursorY += 28;
+  doc.setFont("timesnewroman", "normal");
+  doc.setFontSize(11);
+  addParagraph(`Chain: ${chainLabel} | Address: ${address}`);
+  addParagraph(`Generated: ${now}`);
+
+
+  addHeading("Token Overview");
+  addKeyValue([
+    ["Token Name", analysis.token?.name ?? "Unknown"],
+    ["Symbol", analysis.token?.symbol ?? "N/A"],
+    ["Price (USD)", formatNumber(analysis.token?.priceUsd)],
+    ["Total Supply", analysis.token?.totalSupplyFormatted ?? analysis.token?.totalSupply ?? "N/A"],
+  ]);
+
+  addHeading("Summary");
+  addParagraph(`Rating: ${analysis.summary?.rating ?? "N/A"}`);
+  addSubheading("Key Findings");
+  addList(analysis.summary?.keyFindings ?? [], "No key findings were reported.");
+  addSubheading("Positive Signals");
+  addList(analysis.summary?.goodSigns ?? [], "No positive indicators were highlighted.");
+
+  addHeading("Risk Score");
+  addParagraph(`Overall Score: ${analysis.riskScore?.score ?? 0} (${analysis.riskScore?.label ?? "Unknown"} Risk)`);
+
+  addHeading("Core Indicators");
+  indicatorItems.forEach((item) => {
+    const line = `${item.title} — ${item.status.toUpperCase()} :: ${item.hint ?? item.explanation ?? "No explanation provided."}`;
+    addParagraph(line);
+  });
+
+  addHeading("Detailed Findings");
+  const findings = securityRows.map(
+    (row) => `${row.title} [${row.status.toUpperCase()}] — ${row.category}: ${row.description}`,
+  );
+  addList(findings, "No detailed findings available.");
+
+  addHeading("Holder Distribution");
+  addKeyValue([
+    ["Holder Count", analysis.holders?.holderCount?.toString() ?? "Unknown"],
+    ["Total Supply", analysis.holders?.totalSupplyFormatted ?? analysis.holders?.totalSupply ?? "Unknown"],
+    ["Top Holder", formatPercent(analysis.holders?.topHolderPercent)],
+    ["Top 10 Holders", formatPercent(analysis.holders?.topTenPercent)],
+    ["Deployer Share", formatPercent(analysis.holders?.deployerPercent)],
+    ["Owner Share", formatPercent(analysis.holders?.ownerPercent)],
+  ]);
+
+  addHeading("Top Holders");
+  const topHolderLines =
+    analysis.holders?.top?.map((holder, index) => {
+      const tag = holder.tag ? ` (${holder.tag})` : "";
+      return `${index + 1}. ${holder.address} — ${holder.percent?.toFixed(2) ?? "0"}%${tag}`;
+    }) ?? [];
+  addList(topHolderLines, "Top holder details unavailable.");
+
+  addHeading("Contract Metadata");
+  addKeyValue([
+    ["Deployer", analysis.metadata?.deployer ?? "Unknown"],
+    ["Owner / Admin", analysis.metadata?.ownerAddress ?? analysis.metadata?.proxyAdmin ?? "Unknown"],
+    ["Proxy Implementation", analysis.metadata?.proxyImplementation ?? "None"],
+  ]);
+
+  return doc;
+}
+
+function formatNumber(value: number | null | undefined) {
+  if (typeof value !== "number" || Number.isNaN(value)) return "N/A";
+  if (value >= 1) return `$${value.toFixed(2)}`;
+  return `$${value.toPrecision(2)}`;
+}
+
+function formatPercent(value: number | null | undefined) {
+  if (typeof value !== "number" || Number.isNaN(value)) return "N/A";
+  return `${value.toFixed(2)}%`;
 }
