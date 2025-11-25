@@ -160,6 +160,15 @@ export default function HomeClient() {
   const holderStats = analysis?.holders;
   const priceUsd = analysis?.token?.priceUsd ?? null;
 
+  // Detect if the token doesn't exist (no name, no symbol, no bytecode means it's not a valid token contract)
+  const tokenNotFound =
+    !isLoading &&
+    !error &&
+    analysis &&
+    !analysis.token?.name &&
+    !analysis.token?.symbol &&
+    !analysis.token?.totalSupply;
+
   const badgeLabel = analysis
     ? `${analysis.riskScore?.label ?? "Unknown"} Risk`
     : isLoading
@@ -333,83 +342,100 @@ export default function HomeClient() {
 
       {hasAddress ? (
         <section className="w-full space-y-6" aria-label="Risk summary">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div className="flex flex-col gap-3">
-              <div className="inline-flex w-fit items-center gap-2 rounded-full border border-white/10 bg-white/5 backdrop-blur px-3 py-1">
-                <span className="text-xs text-white/70">Overall</span>
-                <span className={`text-xs font-semibold ${badgeColor}`}>{badgeLabel}</span>
-              </div>
-              {error ? (
-                <div className="rounded-2xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-                  {error}
+          {tokenNotFound ? (
+            <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 px-6 py-4 text-amber-200">
+              <div className="flex items-center gap-3">
+                <AlertTriangle className="h-5 w-5 text-amber-400 flex-shrink-0" />
+                <div>
+                  <p className="font-semibold text-amber-100">Token Not Found</p>
+                  <p className="text-sm text-amber-200/80 mt-1">
+                    The address you entered does not appear to be a valid ERC-20 token contract on {selectedChain.label}.
+                    Please double-check the address and make sure you&apos;re on the correct chain.
+                  </p>
                 </div>
-              ) : null}
-              {isLoading ? (
-                <div className="text-sm text-white/60">Fetching latest on-chain data...</div>
-              ) : null}
-            </div>
-            <button
-              type="button"
-              onClick={handleExportReport}
-              disabled={!analysis || isExporting}
-              className="inline-flex items-center justify-center rounded-2xl border border-[#ffa730]/40 bg-[#ffa730]/10 px-5 py-3 text-sm font-semibold uppercase tracking-wide text-[#ffa730] shadow-lg transition hover:bg-[#ffa730]/20 hover:border-[#ffa730]/70 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/5 disabled:text-white/40"
-            >
-              {isExporting ? "Preparing PDF..." : "Export PDF"}
-            </button>
-          </div>
-          {/* Header row: token info | centered risk | mistake form */}
-          <div className="grid grid-cols-1 items-stretch gap-4 md:grid-cols-2">
-            <GradientCard title="Token" contentClassName="mt-2 space-y-1">
-              <div className="text-sm text-white/80">{analysis?.token?.name ?? "Unknown token"}</div>
-              <div className="text-sm font-medium text-white">{analysis?.token?.symbol ?? "N/A"}</div>
-              <div className="pt-2 text-sm text-white/60">Price (USD)</div>
-              <div className="text-sm text-white">
-                {typeof priceUsd === "number" ? `$${priceUsd.toFixed(4)}` : "Unknown"}
               </div>
-            </GradientCard>
-            <div className="flex justify-center">
-              <div className="w-full max-w-md">
-                <RiskScoreCard
-                  score={analysis?.riskScore?.score ?? 0}
-                  label={(analysis?.riskScore?.label ?? "Low") as "Low" | "Medium" | "High"}
+            </div>
+          ) : (
+            <>
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div className="flex flex-col gap-3">
+                  <div className="inline-flex w-fit items-center gap-2 rounded-full border border-white/10 bg-white/5 backdrop-blur px-3 py-1">
+                    <span className="text-xs text-white/70">Overall</span>
+                    <span className={`text-xs font-semibold ${badgeColor}`}>{badgeLabel}</span>
+                  </div>
+                  {error ? (
+                    <div className="rounded-2xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+                      {error}
+                    </div>
+                  ) : null}
+                  {isLoading ? (
+                    <div className="text-sm text-white/60">Fetching latest on-chain data...</div>
+                  ) : null}
+                </div>
+                <button
+                  type="button"
+                  onClick={handleExportReport}
+                  disabled={!analysis || isExporting || !!tokenNotFound}
+                  className="inline-flex items-center justify-center rounded-2xl border border-[#ffa730]/40 bg-[#ffa730]/10 px-5 py-3 text-sm font-semibold uppercase tracking-wide text-[#ffa730] shadow-lg transition hover:bg-[#ffa730]/20 hover:border-[#ffa730]/70 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/5 disabled:text-white/40"
+                >
+                  {isExporting ? "Preparing PDF..." : "Export PDF"}
+                </button>
+              </div>
+              {/* Header row: token info | centered risk | mistake form */}
+              <div className="grid grid-cols-1 items-stretch gap-4 md:grid-cols-2">
+                <GradientCard title="Token" contentClassName="mt-2 space-y-1">
+                  <div className="text-sm text-white/80">{analysis?.token?.name ?? "Unknown token"}</div>
+                  <div className="text-sm font-medium text-white">{analysis?.token?.symbol ?? "N/A"}</div>
+                  <div className="pt-2 text-sm text-white/60">Price (USD)</div>
+                  <div className="text-sm text-white">
+                    {typeof priceUsd === "number" ? `$${priceUsd.toFixed(4)}` : "Unknown"}
+                  </div>
+                </GradientCard>
+                <div className="flex justify-center">
+                  <div className="w-full max-w-md">
+                    <RiskScoreCard
+                      score={analysis?.riskScore?.score ?? 0}
+                      label={(analysis?.riskScore?.label ?? "Low") as "Low" | "Medium" | "High"}
+                    />
+                  </div>
+                </div>
+              </div>
+              <div>
+                <SummaryBlock address={address!} summary={analysis?.summary ?? null} />
+              </div>
+                            
+               {/* Content row: big findings table | right-side stacked cards */}
+              <div className="">
+                <div className="lg:col-span-2">
+                  <SecurityFindings rows={securityRows} />
+                </div>
+              </div>
+              
+              <div>
+                  <IndicatorsGrid items={indicatorItems} />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-stretch">
+                <TokenOverview address={address!} deployer={metadata?.deployer ?? null} token={analysis?.token} />
+                <ProxyAddresses
+                  implementation={metadata?.proxyImplementation ?? null}
+                  owner={metadata?.proxyAdmin ?? metadata?.ownerAddress ?? null}
+                />
+                <HolderInformation
+                  holderCount={holderStats?.holderCount ?? null}
+                  totalSupply={holderStats?.totalSupplyFormatted ?? holderStats?.totalSupply ?? null}
+                  deployerShare={holderStats?.deployerPercent ?? null}
+                  ownerShare={holderStats?.ownerPercent ?? null}
+                  topTenPercent={holderStats?.topTenPercent ?? null}
                 />
               </div>
-            </div>
-          </div>
-          <div>
-            <SummaryBlock address={address!} summary={analysis?.summary ?? null} />
-          </div>
-                    
-           {/* Content row: big findings table | right-side stacked cards */}
-          <div className="">
-            <div className="lg:col-span-2">
-              <SecurityFindings rows={securityRows} />
-            </div>
-          </div>
-          
-          <div>
-              <IndicatorsGrid items={indicatorItems} />
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-stretch">
-            <TokenOverview address={address!} deployer={metadata?.deployer ?? null} token={analysis?.token} />
-            <ProxyAddresses
-              implementation={metadata?.proxyImplementation ?? null}
-              owner={metadata?.proxyAdmin ?? metadata?.ownerAddress ?? null}
-            />
-            <HolderInformation
-              holderCount={holderStats?.holderCount ?? null}
-              totalSupply={holderStats?.totalSupplyFormatted ?? holderStats?.totalSupply ?? null}
-              deployerShare={holderStats?.deployerPercent ?? null}
-              ownerShare={holderStats?.ownerPercent ?? null}
-              topTenPercent={holderStats?.topTenPercent ?? null}
-            />
-          </div>
-
-          {/* Extras */}
-          <div>
-              <TopHoldersTable holders={holders} />
-          </div>
+              {/* Extras */}
+              {/* <div>
+                  <TopHoldersTable holders={holders} />
+              </div> */}
+            </>
+          )}
         </section>
       ) : null}
       </div>
