@@ -126,18 +126,6 @@ export function HolderInformation({
           <span className="text-white/60">Total Supply</span>
           <span className="text-white">{totalSupply ?? "Unknown"}</span>
         </div>
-        <div className="flex items-center justify-between">
-          <span className="text-white/60">Deployer Balance</span>
-          <span className="text-white">{formatPercent(deployerShare)}</span>
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-white/60">Owner Balance</span>
-          <span className="text-white">{formatPercent(ownerShare)}</span>
-        </div>
-        <div className="flex items-center justify-between">
-          <span className="text-white/60">Top 10 EOA Concentration</span>
-          <span className="text-white">{formatPercent(topTenPercent)}</span>
-        </div>
       </div>
     </CardContainer>
   );

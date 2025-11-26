@@ -63,7 +63,6 @@ const CHAIN_OPTIONS = [
 const ANALYSIS_MODES = [
   { label: "Token", value: "token" },
   { label: "Contract", value: "contract" },
-  { label: "Auto", value: "auto" },
 ] as const;
 
 type AnalysisMode = (typeof ANALYSIS_MODES)[number]["value"];
