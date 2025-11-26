@@ -60,6 +60,14 @@ const CHAIN_OPTIONS = [
   { label: "Polygon", value: "polygon" },
 ] as const;
 
+const ANALYSIS_MODES = [
+  { label: "Token", value: "token" },
+  { label: "Contract", value: "contract" },
+  { label: "Auto", value: "auto" },
+] as const;
+
+type AnalysisMode = (typeof ANALYSIS_MODES)[number]["value"];
+
 const MARKETING_INDICATORS = INDICATOR_ORDER.map((key) => ({
   title: INDICATOR_COPY[key].title,
   description: INDICATOR_COPY[key].description,
@@ -73,6 +81,9 @@ export default function HomeClient() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [aiInsight, setAiInsight] = useState<string | null>(null);
+  const [aiStatus, setAiStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [analysisMode, setAnalysisMode] = useState<AnalysisMode>("token");
   const chainDropdownRef = useRef<HTMLDivElement | null>(null);
   const hasAddress = Boolean(address);
   const selectedChainValue = selectedChain.value;
@@ -99,7 +110,7 @@ export default function HomeClient() {
         const response = await fetch("/api/analyze", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ chain: selectedChainValue, address }),
+          body: JSON.stringify({ chain: selectedChainValue, address, addressType: analysisMode }),
           signal: controller.signal,
         });
         const payload = await response.json();
@@ -129,7 +140,58 @@ export default function HomeClient() {
       cancelled = true;
       controller.abort();
     };
-  }, [address, selectedChainValue]);
+  }, [address, selectedChainValue, analysisMode]);
+
+  useEffect(() => {
+    const sourceCode = analysis?.metadata?.sourceCode;
+    const isVerified = analysis?.metadata?.isVerified;
+    if (!sourceCode || !isVerified || !address) {
+      setAiInsight(null);
+      setAiStatus("idle");
+      return;
+    }
+
+    let cancelled = false;
+    const controller = new AbortController();
+    async function runAiInsight() {
+      try {
+        setAiStatus("loading");
+        const response = await fetch("/api/contract-code-insights", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sourceCode,
+            contractName: analysis?.metadata?.contractName ?? analysis?.token?.name ?? null,
+            address,
+          }),
+          signal: controller.signal,
+        });
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload?.error ?? "Failed to generate AI summary.");
+        }
+        if (!cancelled) {
+          setAiInsight(payload.summary ?? null);
+          setAiStatus("ready");
+          console.log("[AI Contract Summary]", payload.summary);
+        }
+      } catch (err) {
+        if (cancelled || (err instanceof DOMException && err.name === "AbortError")) return;
+        console.error(err);
+        if (!cancelled) {
+          setAiStatus("error");
+          setAiInsight(null);
+        }
+      }
+    }
+
+    runAiInsight();
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [analysis?.metadata?.sourceCode, analysis?.metadata?.isVerified, analysis?.metadata?.contractName, analysis?.token?.name, address]);
 
   const indicatorItems = INDICATOR_ORDER.map((key) => {
     const copy = INDICATOR_COPY[key];
@@ -155,13 +217,15 @@ export default function HomeClient() {
       })
     : [];
 
-  const holders = analysis?.holders?.top ?? [];
   const metadata = analysis?.metadata;
   const holderStats = analysis?.holders;
   const priceUsd = analysis?.token?.priceUsd ?? null;
+  const resolvedAddressType = metadata?.addressType ?? (analysisMode === "contract" ? "contract" : "token");
+  const holders = resolvedAddressType === "token" ? analysis?.holders?.top ?? [] : [];
 
-  // Detect if the token doesn't exist (no name, no symbol, no bytecode means it's not a valid token contract)
+  // Detect if the token doesn't exist (only applies when analyzing as token)
   const tokenNotFound =
+    resolvedAddressType === "token" &&
     !isLoading &&
     !error &&
     analysis &&
@@ -229,6 +293,31 @@ export default function HomeClient() {
           Auditly
         </h1>
         <div className="w-full max-w-2xl flex flex-col gap-3">
+                    <div className="flex flex-col gap-2 text-sm text-white/70 md:flex-row md:items-center md:justify-between">
+            <p className="text-center md:text-left">
+              Currently scanning on <span className="font-semibold text-[#ffa730]">{selectedChain.label}</span>
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs uppercase tracking-wide text-white/50">Analyze as</span>
+              <div className="inline-flex rounded-2xl border border-white/10 bg-white/5 p-1">
+                {ANALYSIS_MODES.map((mode) => (
+                  <button
+                    key={mode.value}
+                    type="button"
+                    aria-pressed={analysisMode === mode.value}
+                    onClick={() => setAnalysisMode(mode.value)}
+                    className={`px-3 py-1 text-xs font-semibold uppercase tracking-wide rounded-2xl transition ${
+                      analysisMode === mode.value
+                        ? "bg-[#ffa730]/80 text-black shadow"
+                        : "text-white/70 hover:text-white"
+                    }`}
+                  >
+                    {mode.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
           <div className="flex w-full flex-col gap-3 md:flex-row md:items-center">
             <div className="w-full md:w-auto">
               <div ref={chainDropdownRef} className="relative w-full md:w-52">
@@ -277,9 +366,7 @@ export default function HomeClient() {
               <AddressSearch defaultValue="0x1111111111111111111111111111111111111111" onSubmit={setAddress} />
             </div>
           </div>
-          <p className="text-center text-sm text-white/60 md:text-left">
-            Currently scanning on <span className="font-semibold text-[#ffa730]">{selectedChain.label}</span>
-          </p>
+
         </div>
       </div>
 
@@ -359,9 +446,15 @@ export default function HomeClient() {
             <>
               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div className="flex flex-col gap-3">
-                  <div className="inline-flex w-fit items-center gap-2 rounded-full border border-white/10 bg-white/5 backdrop-blur px-3 py-1">
-                    <span className="text-xs text-white/70">Overall</span>
-                    <span className={`text-xs font-semibold ${badgeColor}`}>{badgeLabel}</span>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="inline-flex w-fit items-center gap-2 rounded-full border border-white/10 bg-white/5 backdrop-blur px-3 py-1">
+                      <span className="text-xs text-white/70">Overall</span>
+                      <span className={`text-xs font-semibold ${badgeColor}`}>{badgeLabel}</span>
+                    </div>
+                    <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs uppercase tracking-wide text-white/70">
+                      <span>Analyzing</span>
+                      <span className="text-[#ffa730] font-semibold">{resolvedAddressType}</span>
+                    </div>
                   </div>
                   {error ? (
                     <div className="rounded-2xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
@@ -381,11 +474,32 @@ export default function HomeClient() {
                   {isExporting ? "Preparing PDF..." : "Export PDF"}
                 </button>
               </div>
+              {resolvedAddressType === "contract" ? (
+                <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/80">
+                  <p className="font-semibold text-white">
+                    {metadata?.isVerified ? "Verified contract" : "Unverified contract"}
+                  </p>
+                  <p className="text-white/60">
+                    {metadata?.sourceCode
+                      ? "Source code fetched from explorer and ready for deeper review."
+                      : "Explorer did not return verified source code; unable to read contract code."}
+                  </p>
+                </div>
+              ) : null}
               {/* Header row: token info | centered risk | mistake form */}
               <div className="grid grid-cols-1 items-stretch gap-4 md:grid-cols-2">
-                <GradientCard title="Token" contentClassName="mt-2 space-y-1">
-                  <div className="text-sm text-white/80">{analysis?.token?.name ?? "Unknown token"}</div>
-                  <div className="text-sm font-medium text-white">{analysis?.token?.symbol ?? "N/A"}</div>
+                <GradientCard
+                  title={resolvedAddressType === "contract" ? "Contract" : "Token"}
+                  contentClassName="mt-2 space-y-1"
+                >
+                  <div className="text-sm text-white/80">
+                    {analysis?.token?.name ??
+                      metadata?.contractName ??
+                      (resolvedAddressType === "contract" ? "Unknown contract" : "Unknown token")}
+                  </div>
+                  <div className="text-sm font-medium text-white">
+                    {analysis?.token?.symbol ?? (resolvedAddressType === "contract" ? "N/A" : "N/A")}
+                  </div>
                   <div className="pt-2 text-sm text-white/60">Price (USD)</div>
                   <div className="text-sm text-white">
                     {typeof priceUsd === "number" ? `$${priceUsd.toFixed(4)}` : "Unknown"}
@@ -401,7 +515,7 @@ export default function HomeClient() {
                 </div>
               </div>
               <div>
-                <SummaryBlock address={address!} summary={analysis?.summary ?? null} />
+            <SummaryBlock address={address!} summary={analysis?.summary ?? null} aiInsight={aiInsight} aiStatus={aiStatus} />
               </div>
                             
                {/* Content row: big findings table | right-side stacked cards */}
@@ -416,24 +530,40 @@ export default function HomeClient() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-stretch">
-                <TokenOverview address={address!} deployer={metadata?.deployer ?? null} token={analysis?.token} />
+                <TokenOverview
+                  address={address!}
+                  deployer={metadata?.deployer ?? null}
+                  token={analysis?.token}
+                  variant={resolvedAddressType === "contract" ? "contract" : "token"}
+                  contractName={metadata?.contractName ?? analysis?.token?.name ?? null}
+                  isVerified={metadata?.isVerified}
+                  sourceAvailable={Boolean(metadata?.sourceCode)}
+                />
                 <ProxyAddresses
                   implementation={metadata?.proxyImplementation ?? null}
                   owner={metadata?.proxyAdmin ?? metadata?.ownerAddress ?? null}
                 />
-                <HolderInformation
-                  holderCount={holderStats?.holderCount ?? null}
-                  totalSupply={holderStats?.totalSupplyFormatted ?? holderStats?.totalSupply ?? null}
-                  deployerShare={holderStats?.deployerPercent ?? null}
-                  ownerShare={holderStats?.ownerPercent ?? null}
-                  topTenPercent={holderStats?.topTenPercent ?? null}
-                />
+                {resolvedAddressType === "token" ? (
+                  <HolderInformation
+                    holderCount={holderStats?.holderCount ?? null}
+                    totalSupply={holderStats?.totalSupplyFormatted ?? holderStats?.totalSupply ?? null}
+                    deployerShare={holderStats?.deployerPercent ?? null}
+                    ownerShare={holderStats?.ownerPercent ?? null}
+                    topTenPercent={holderStats?.topTenPercent ?? null}
+                  />
+                ) : (
+                  <div className="rounded-2xl border border-white/20 bg-black/90 p-5 text-sm text-white/70">
+                    Holder metrics are only shown for fungible tokens.
+                  </div>
+                )}
               </div>
 
               {/* Extras */}
-              {/* <div>
+              {resolvedAddressType === "token" && holders.length ? (
+                <div>
                   <TopHoldersTable holders={holders} />
-              </div> */}
+                </div>
+              ) : null}
             </>
           )}
         </section>

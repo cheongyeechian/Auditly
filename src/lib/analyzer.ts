@@ -23,6 +23,7 @@ import type {
 interface AnalyzeInput {
   chain: string;
   address: string;
+  addressType?: AddressKind;
 }
 
 interface ChainConfig {
@@ -35,6 +36,7 @@ interface ChainConfig {
     baseUrl: string;
     apiKey?: string;
     apiEnvHints: string[];
+    chainId: number;
   };
 }
 
@@ -45,6 +47,8 @@ interface ExplorerContractInfo {
   proxy: boolean;
   contractCreator: string | null;
   proxyAdmin: string | null;
+  contractName: string | null;
+  sourceCode: string | null;
 }
 
 type RawHolderRow = {
@@ -54,6 +58,7 @@ type RawHolderRow = {
 };
 
 interface TokenProfile {
+  tokenName: string | null;
   priceUsd: number | null;
   holderCount: number | null;
   totalSupply: string | null;
@@ -63,6 +68,8 @@ interface TokenProfile {
 interface ContractCreationInfo {
   contractCreator: string | null;
 }
+
+type AddressKind = "token" | "contract" | "auto";
 
 class AnalyzerError extends Error {
   statusCode: number;
@@ -84,9 +91,10 @@ const chainConfigs: Record<SupportedChain, ChainConfig> = {
     rpcUrl:`https://eth-mainnet.g.alchemy.com/v2/${defaultAlchemyKey}`,
     rpcEnvHints: ["ALCHEMY_ETHEREUM_RPC_URL", "ALCHEMY_API_KEY"],
     explorer: {
-      baseUrl: `https://api.etherscan.io/v2/api?chainid=1&action=balance&apikey=${process.env.ETHERSCAN_API_KEY}`,
+      baseUrl: "https://api.etherscan.io/v2/api",
       apiKey: process.env.ETHERSCAN_API_KEY,
       apiEnvHints: ["ETHERSCAN_API_KEY"],
+      chainId: 1,
     },
   },
   base: {
@@ -96,9 +104,10 @@ const chainConfigs: Record<SupportedChain, ChainConfig> = {
     rpcUrl:`https://base-mainnet.g.alchemy.com/v2/${defaultAlchemyKey}`,
     rpcEnvHints: ["ALCHEMY_API_KEY"],
     explorer: {
-      baseUrl: `https://api.basescan.org/v2/api?chainid=8453&action=balance&apikey=${process.env.ETHERSCAN_API_KEY}`,
-      apiKey: process.env.BASESCAN_API_KEY ?? process.env.ETHERSCAN_API_KEY,
-      apiEnvHints: ["BASESCAN_API_KEY", "ETHERSCAN_API_KEY"],
+      baseUrl: "https://api.etherscan.io/v2/api",
+      apiKey: process.env.ETHERSCAN_API_KEY,
+      apiEnvHints: ["ETHERSCAN_API_KEY"],
+      chainId: 8453,
     },
   },
   polygon: {
@@ -108,9 +117,10 @@ const chainConfigs: Record<SupportedChain, ChainConfig> = {
     rpcUrl:`https://polygon-mainnet.g.alchemy.com/v2/${defaultAlchemyKey}`,
     rpcEnvHints: ["ALCHEMY_POLYGON_RPC_URL", "ALCHEMY_API_KEY"],
     explorer: {
-      baseUrl: `https://api.polygonscan.com/v2/api?chainid=137&action=balance&apikey=${process.env.ETHERSCAN_API_KEY}`,
-      apiKey: process.env.POLYGONSCAN_API_KEY ?? process.env.ETHERSCAN_API_KEY,
-      apiEnvHints: ["POLYGONSCAN_API_KEY", "ETHERSCAN_API_KEY"],
+      baseUrl: "https://api.etherscan.io/v2/api",
+      apiKey: process.env.ETHERSCAN_API_KEY,
+      apiEnvHints: ["ETHERSCAN_API_KEY"],
+      chainId: 137,
     },
   },
   bsc: {
@@ -120,12 +130,34 @@ const chainConfigs: Record<SupportedChain, ChainConfig> = {
     rpcUrl: `https://bnb-mainnet.g.alchemy.com/v2/${defaultAlchemyKey}`,
     rpcEnvHints: ["BSC_RPC_URL", "ALCHEMY_API_KEY"],
     explorer: {
-      baseUrl: `https://api.bscscan.com/v2/api?chainid=56&action=balance&apikey=${process.env.ETHERSCAN_API_KEY}`,
-      apiKey: process.env.BSCSCAN_API_KEY ?? process.env.ETHERSCAN_API_KEY,
-      apiEnvHints: ["BSCSCAN_API_KEY", "ETHERSCAN_API_KEY"],
+      baseUrl: "https://api.etherscan.io/v2/api",
+      apiKey: process.env.ETHERSCAN_API_KEY,
+      apiEnvHints: ["ETHERSCAN_API_KEY"],
+      chainId: 56,
     },
   },
 };
+
+function buildExplorerUrl(config: ChainConfig, params: Record<string, string | number | undefined>) {
+  const url = new URL(config.explorer.baseUrl);
+  Object.entries(params).forEach(([key, value]) => {
+    if (value === undefined || value === null) return;
+    url.searchParams.set(key, String(value));
+  });
+  url.searchParams.set("chainid", String(config.explorer.chainId));
+  if (config.explorer.apiKey) {
+    url.searchParams.set("apikey", config.explorer.apiKey);
+  }
+  return url;
+}
+
+function normalizeAddressKind(value?: string | null): AddressKind {
+  if (!value) return "auto";
+  const normalized = value.toLowerCase();
+  if (normalized === "token") return "token";
+  if (normalized === "contract") return "contract";
+  return "auto";
+}
 
 const indicatorMetadata: Record<
   IndicatorKey,
@@ -204,6 +236,7 @@ export async function analyzeContract(input: AnalyzeInput): Promise<AnalysisResp
     throw new AnalyzerError("Invalid or missing address", 400);
   }
 
+  const requestedKind = normalizeAddressKind(input.addressType);
   const checksumAddress = getAddress(input.address);
   const config = chainConfigs[chainKey];
 
@@ -234,9 +267,8 @@ export async function analyzeContract(input: AnalyzeInput): Promise<AnalysisResp
     safeReadContract<bigint>(client, checksumAddress, "totalSupply"),
   ]);
 
-  const [explorerInfo, holders, tokenProfile, contractCreation] = await Promise.all([
+  const [explorerInfo, tokenProfile, contractCreation] = await Promise.all([
     fetchContractInfo(chainKey, checksumAddress),
-    fetchTopHolders(chainKey, checksumAddress),
     fetchTokenProfile(chainKey, checksumAddress),
     fetchContractCreation(chainKey, checksumAddress),
   ]);
@@ -246,12 +278,39 @@ export async function analyzeContract(input: AnalyzeInput): Promise<AnalysisResp
       ? formatUnits(totalSupply, decimals)
       : null;
 
+  const autoTokenEvidence =
+    Boolean(tokenProfile?.totalSupply) ||
+    typeof decimals === "number" ||
+    Boolean(symbol) ||
+    Boolean(name) ||
+    Boolean(totalSupplyFormatted);
+
+  let resolvedKind: "token" | "contract";
+  if (requestedKind === "auto") {
+    resolvedKind = autoTokenEvidence ? "token" : "contract";
+  } else if (requestedKind === "token" && !autoTokenEvidence) {
+    throw new AnalyzerError(
+      "This address does not look like an ERC-20 token. Switch to contract mode to continue.",
+      400,
+    );
+  } else if (requestedKind === "contract") {
+    resolvedKind = "contract";
+  } else {
+    resolvedKind = "token";
+  }
+
+  const shouldCollectTokenMetrics = resolvedKind === "token";
+  const holders = shouldCollectTokenMetrics
+    ? await fetchTopHolders(chainKey, checksumAddress, totalSupply, decimals)
+    : [];
+
   const findings = runFindings({
     bytecode,
     abi: explorerInfo?.abi ?? null,
     explorerInfo,
     holders,
     totalSupplyFormatted,
+    isTokenContract: shouldCollectTokenMetrics,
   });
 
   const totalPenalty = Object.values(findings).reduce((sum, item) => sum + item.penalty, 0);
@@ -269,22 +328,41 @@ export async function analyzeContract(input: AnalyzeInput): Promise<AnalysisResp
   const deployerAddress = contractCreation?.contractCreator ?? explorerInfo?.contractCreator ?? null;
   const ownerAddress = explorerInfo?.proxyAdmin ?? deployerAddress ?? null;
 
-  const holdersStats = summarizeHolders(holders, {
-    holderCountOverride: tokenProfile?.holderCount ?? null,
-    deployer: deployerAddress,
-    owner: ownerAddress,
-  });
+  const holdersStats = shouldCollectTokenMetrics
+    ? summarizeHolders(holders, {
+        holderCountOverride: tokenProfile?.holderCount ?? null,
+        deployer: deployerAddress,
+        owner: ownerAddress,
+      })
+    : {
+        holderCount: null,
+        topHolderPercent: null,
+        topTenPercent: null,
+        deployerPercent: null,
+        ownerPercent: null,
+      };
+
+  const tokenSection = shouldCollectTokenMetrics
+    ? {
+        name: tokenProfile?.tokenName ?? name ?? explorerInfo?.contractName ?? null,
+        symbol: symbol ?? null,
+        decimals: decimals ?? null,
+        totalSupply: totalSupply ? totalSupply.toString() : tokenProfile?.totalSupply ?? null,
+        totalSupplyFormatted: totalSupplyFormatted ?? tokenProfile?.totalSupply ?? null,
+        priceUsd: tokenProfile?.priceUsd ?? null,
+      }
+    : {
+        name: explorerInfo?.contractName ?? name ?? null,
+        symbol: symbol ?? null,
+        decimals: null,
+        totalSupply: null,
+        totalSupplyFormatted: null,
+        priceUsd: null,
+      };
 
   return {
     chain: config.displayName,
-    token: {
-      name: name ?? null,
-      symbol: symbol ?? null,
-      decimals: decimals ?? null,
-      totalSupply: totalSupply ? totalSupply.toString() : null,
-      totalSupplyFormatted,
-      priceUsd: tokenProfile?.priceUsd ?? null,
-    },
+    token: tokenSection,
     riskScore: {
       score,
       label,
@@ -297,8 +375,12 @@ export async function analyzeContract(input: AnalyzeInput): Promise<AnalysisResp
     findings,
     holders: {
       holderCount: holdersStats.holderCount,
-      totalSupply: totalSupply ? totalSupply.toString() : tokenProfile?.totalSupply ?? null,
-      totalSupplyFormatted: totalSupplyFormatted ?? tokenProfile?.totalSupply ?? null,
+      totalSupply: shouldCollectTokenMetrics
+        ? totalSupply
+          ? totalSupply.toString()
+          : tokenProfile?.totalSupply ?? null
+        : null,
+      totalSupplyFormatted: shouldCollectTokenMetrics ? tokenSection.totalSupplyFormatted : null,
       topHolderPercent: holdersStats.topHolderPercent,
       topTenPercent: holdersStats.topTenPercent,
       deployerPercent: holdersStats.deployerPercent,
@@ -311,6 +393,10 @@ export async function analyzeContract(input: AnalyzeInput): Promise<AnalysisResp
       ownerAddress,
       proxyImplementation: explorerInfo?.implementation ?? null,
       proxyAdmin: explorerInfo?.proxyAdmin ?? null,
+      addressType: resolvedKind,
+      contractName: explorerInfo?.contractName ?? null,
+      isVerified: explorerInfo?.isVerified ?? false,
+      sourceCode: explorerInfo?.sourceCode ?? null,
     },
   };
 }
@@ -355,44 +441,70 @@ async function safeReadContract<T>(
 
 async function fetchContractInfo(chain: SupportedChain, address: Address): Promise<ExplorerContractInfo | null> {
   const config = chainConfigs[chain];
-  const url = new URL(config.explorer.baseUrl);
-  url.searchParams.set("module", "contract");
-  url.searchParams.set("action", "getsourcecode");
-  url.searchParams.set("address", address);
-  url.searchParams.set("apikey", config.explorer.apiKey ?? "");
+  const url = buildExplorerUrl(config, {
+    module: "contract",
+    action: "getsourcecode",
+    address,
+  });
 
-  const res = await fetch(url, { cache: "no-store" });
-  if (!res.ok) return null;
-  const json = (await res.json()) as ExplorerResponse<ExplorerSourceResult[]>;
-  if (!json.result || !Array.isArray(json.result) || !json.result[0]) {
+  try {
+    console.log("[fetchContractInfo] Fetching:", url.toString());
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) {
+      console.error(`[fetchContractInfo] Explorer API error: ${res.status} ${res.statusText}`);
+      return null;
+    }
+    const json = (await res.json()) as ExplorerResponse<ExplorerSourceResult[]>;
+    console.log("[fetchContractInfo] Response status:", json.status, "message:", json.message);
+    
+    if (!json.result || !Array.isArray(json.result) || !json.result[0]) {
+      console.log("[fetchContractInfo] No result array or empty result");
+      return null;
+    }
+
+    const entry = json.result[0] as ExplorerSourceResult;
+    const abiNotVerifiedMsg = "Contract source code not verified";
+    const hasValidAbi = entry.ABI && entry.ABI !== abiNotVerifiedMsg && entry.ABI.trim() !== "";
+    const hasSourceCode = entry.SourceCode && entry.SourceCode.trim() !== "";
+    const isVerified = Boolean(hasValidAbi || hasSourceCode);
+    const abi = hasValidAbi ? safeParseAbi(entry.ABI) : null;
+
+    console.log("[fetchContractInfo] Contract:", entry.ContractName, "| Verified:", isVerified, "| hasABI:", hasValidAbi, "| hasSource:", hasSourceCode);
+
+    if (isVerified && hasSourceCode) {
+      console.log("[fetchContractInfo] Source Code:", entry.SourceCode);
+    }
+
+    return {
+      isVerified,
+      abi,
+      implementation: entry.Implementation || null,
+      proxy: entry.Proxy === "1",
+      contractCreator: entry.ContractCreator ? safeAddress(entry.ContractCreator) : null,
+      proxyAdmin: entry.ProxyCreator ? safeAddress(entry.ProxyCreator) : null,
+      contractName: entry.ContractName || null,
+      sourceCode: hasSourceCode ? entry.SourceCode : null,
+    };
+  } catch (error) {
+    console.error("[fetchContractInfo] failed", error);
     return null;
   }
-
-  const entry = json.result[0] as ExplorerSourceResult;
-  const abi =
-    entry.ABI && entry.ABI !== "Contract source code not verified"
-      ? safeParseAbi(entry.ABI)
-      : null;
-
-  return {
-    isVerified: entry.ABI !== "Contract source code not verified",
-    abi,
-    implementation: entry.Implementation || null,
-    proxy: entry.Proxy === "1",
-    contractCreator: entry.ContractCreator ? safeAddress(entry.ContractCreator) : null,
-    proxyAdmin: entry.ProxyCreator ? safeAddress(entry.ProxyCreator) : null,
-  };
 }
 
-async function fetchTopHolders(chain: SupportedChain, address: Address): Promise<HolderRecord[]> {
+async function fetchTopHolders(
+  chain: SupportedChain,
+  address: Address,
+  _totalSupply?: bigint | null,
+  _decimals?: number | null,
+): Promise<HolderRecord[]> {
   const config = chainConfigs[chain];
-  const url = new URL(config.explorer.baseUrl);
-  url.searchParams.set("module", "token");
-  url.searchParams.set("action", "tokenholderlist");
-  url.searchParams.set("contractaddress", address);
-  url.searchParams.set("page", "1");
-  url.searchParams.set("offset", "10");
-  url.searchParams.set("apikey", config.explorer.apiKey ?? "");
+  const url = buildExplorerUrl(config, {
+    module: "token",
+    action: "tokenholderlist",
+    contractaddress: address,
+    page: "1",
+    offset: "10",
+  });
 
   try {
     const res = await fetch(url, { cache: "no-store" });
@@ -419,11 +531,11 @@ async function fetchTopHolders(chain: SupportedChain, address: Address): Promise
 
 async function fetchTokenProfile(chain: SupportedChain, address: Address): Promise<TokenProfile | null> {
   const config = chainConfigs[chain];
-  const url = new URL(config.explorer.baseUrl);
-  url.searchParams.set("module", "token");
-  url.searchParams.set("action", "tokeninfo");
-  url.searchParams.set("contractaddress", address);
-  url.searchParams.set("apikey", config.explorer.apiKey ?? "");
+  const url = buildExplorerUrl(config, {
+    module: "token",
+    action: "tokeninfo",
+    contractaddress: address,
+  });
 
   try {
     const res = await fetch(url, { cache: "no-store" });
@@ -432,6 +544,7 @@ async function fetchTokenProfile(chain: SupportedChain, address: Address): Promi
     if (json.status === "0" || !Array.isArray(json.result) || !json.result[0]) return null;
     const info = json.result[0];
     return {
+      tokenName: info.tokenName ?? info.symbol ?? null,
       priceUsd: toOptionalNumber(info.tokenPriceUSD ?? info.tokenPriceUsd ?? info.priceUsd),
       holderCount: toOptionalNumber(info.holderCount ?? info.holders),
       totalSupply: info.totalSupply ?? null,
@@ -444,11 +557,11 @@ async function fetchTokenProfile(chain: SupportedChain, address: Address): Promi
 
 async function fetchContractCreation(chain: SupportedChain, address: Address): Promise<ContractCreationInfo | null> {
   const config = chainConfigs[chain];
-  const url = new URL(config.explorer.baseUrl);
-  url.searchParams.set("module", "contract");
-  url.searchParams.set("action", "getcontractcreation");
-  url.searchParams.set("contractaddresses", address);
-  url.searchParams.set("apikey", config.explorer.apiKey ?? "");
+  const url = buildExplorerUrl(config, {
+    module: "contract",
+    action: "getcontractcreation",
+    contractaddresses: address,
+  });
 
   try {
     const res = await fetch(url, { cache: "no-store" });
@@ -469,13 +582,24 @@ function runFindings(context: {
   explorerInfo: ExplorerContractInfo | null;
   holders: HolderRecord[];
   totalSupplyFormatted: string | null;
+  isTokenContract: boolean;
 }): Record<IndicatorKey, FindingDetail> {
   const verifiedSource = analyzeVerifiedSource(context.explorerInfo);
   const proxy = analyzeProxy(context.explorerInfo);
   const ownerPrivileges = analyzeOwnerPrivileges(context.abi);
   const dangerousFunctions = analyzeDangerousFunctions(context.abi, context.bytecode, ownerPrivileges);
-  const liquidity = analyzeLiquidity(context.holders);
-  const holderDistribution = analyzeHolderDistribution(context.holders);
+  const liquidity = context.isTokenContract
+    ? analyzeLiquidity(context.holders)
+    : buildFinding("liquidity", "PASS", {
+        reason: "Liquidity checks are only applicable to ERC-20 tokens.",
+        penalty: 0,
+      });
+  const holderDistribution = context.isTokenContract
+    ? analyzeHolderDistribution(context.holders)
+    : buildFinding("holderDistribution", "PASS", {
+        reason: "Holder distribution applies only to fungible tokens.",
+        penalty: 0,
+      });
 
   return {
     verifiedSource,
@@ -489,13 +613,23 @@ function runFindings(context: {
 
 function analyzeVerifiedSource(info: ExplorerContractInfo | null): FindingDetail {
   const metadata = indicatorMetadata.verifiedSource;
-  const isVerified = Boolean(info?.abi && Array.isArray(info.abi) && info.abi.length);
+  const hasParsedAbi = Boolean(info?.abi && Array.isArray(info.abi) && info.abi.length);
+  const isVerified = Boolean(info?.isVerified || hasParsedAbi);
+
   if (isVerified) {
     return buildFinding("verifiedSource", "PASS", {
       reason: "Contract source is verified on the explorer.",
       penalty: 0,
     });
   }
+
+  if (!info) {
+    return buildFinding("verifiedSource", "WARN", {
+      reason: "Could not confirm verification status from explorer.",
+      penalty: 10,
+    });
+  }
+
   return buildFinding("verifiedSource", "FAIL", {
     reason: "Source is not verified; code cannot be audited easily.",
     penalty: metadata.maxPenalty,
@@ -587,12 +721,6 @@ function analyzeDangerousFunctions(abi: Abi | null, bytecode: Hex | null, ownerF
 
   const selfDestructDetected = hasOpcode(bytecode, "ff") || hasOpcode(bytecode, "fe");
 
-  if (selfDestructDetected || criticalMatches.length) {
-    return buildFinding("dangerousFunctions", "FAIL", {
-      reason: "Critical red-flag functions present (selfdestruct/delegate/emergency withdraw).",
-      penalty: metadata.maxPenalty,
-    });
-  }
 
   if (!matches.length) {
     return buildFinding("dangerousFunctions", "PASS", {

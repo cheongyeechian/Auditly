@@ -64,6 +64,10 @@ export interface AnalysisResponse {
     ownerAddress: string | null;
     proxyImplementation: string | null;
     proxyAdmin: string | null;
+    addressType: "token" | "contract";
+    contractName: string | null;
+    isVerified: boolean;
+    sourceCode: string | null;
   };
 }
 

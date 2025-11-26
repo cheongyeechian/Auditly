@@ -6,12 +6,18 @@ export type SummaryData = {
   goodSigns: string[];
 };
 
+type AiStatus = "idle" | "loading" | "ready" | "error";
+
 export default function SummaryBlock({
   address,
   summary,
+  aiInsight,
+  aiStatus = "idle",
 }: {
   address: string;
   summary?: SummaryData | null;
+  aiInsight?: string | null;
+  aiStatus?: AiStatus;
 }) {
   const trimmedFindings = summary?.keyFindings?.filter((item) => item?.trim()) ?? [];
   const trimmedGood = summary?.goodSigns?.filter((item) => item?.trim()) ?? [];
@@ -52,16 +58,30 @@ export default function SummaryBlock({
         </div>
       </div>
       <div className="relative z-10 mt-10 grid gap-8 md:grid-cols-2">
-        <div>
-          <p className="text-sm font-semibold uppercase tracking-wide text-white/70">Key Findings</p>
-          <ul className="mt-3 space-y-2 text-sm text-white/80">
-            {keyFindings.map((item, idx) => (
-              <li key={`${item}-${idx}`} className="flex items-start gap-3 rounded-2xl border border-white/5 bg-white/5 px-4 py-3">
-                <span className="mt-1 h-1.5 w-1.5 rounded-full bg-[#f6d488]" />
-                <span className="text-white/80">{item}</span>
-              </li>
-            ))}
-          </ul>
+        <div className="space-y-6">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-wide text-white/70">Key Findings</p>
+            <ul className="mt-3 space-y-2 text-sm text-white/80">
+              {keyFindings.map((item, idx) => (
+                <li key={`${item}-${idx}`} className="flex items-start gap-3 rounded-2xl border border-white/5 bg-white/5 px-4 py-3">
+                  <span className="mt-1 h-1.5 w-1.5 rounded-full bg-[#f6d488]" />
+                  <span className="text-white/80">{item}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+          {aiStatus !== "idle" ? (
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/80">
+              <p className="text-xs font-semibold uppercase tracking-wide text-white/60">AI Contract Review</p>
+              {aiStatus === "loading" ? (
+                <p className="mt-2 text-white/60">Gemini is reviewing the verified source code…</p>
+              ) : aiStatus === "error" ? (
+                <p className="mt-2 text-red-300">Could not generate AI summary.</p>
+              ) : aiInsight ? (
+                <p className="mt-2 whitespace-pre-line">{aiInsight}</p>
+              ) : null}
+            </div>
+          ) : null}
         </div>
         <div>
           <p className="text-sm font-semibold uppercase tracking-wide text-white/70">Good Signs</p>

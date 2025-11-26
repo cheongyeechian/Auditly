@@ -23,17 +23,35 @@ export function TokenOverview({
   address,
   deployer,
   token,
+  variant = "token",
+  contractName,
+  isVerified,
+  sourceAvailable,
 }: {
   address: string;
   deployer: string | null;
   token?: { name?: string | null; symbol?: string | null };
+  variant?: "token" | "contract";
+  contractName?: string | null;
+  isVerified?: boolean;
+  sourceAvailable?: boolean;
 }) {
+  const title = variant === "contract" ? "Contract Overview" : "Token Overview";
+  const displayName =
+    variant === "contract"
+      ? contractName ?? token?.name ?? "Unknown contract"
+      : token?.name ?? "Unknown token";
   return (
-    <CardContainer title="Token Overview">
+    <CardContainer title={title}>
       <div className="space-y-3 text-sm text-white/80">
         <div>
-          <div className="text-xs uppercase tracking-wide text-white/60">Token</div>
-          <div className="text-white">{token?.name ?? "Unknown"} {token?.symbol ? `(${token.symbol})` : ""}</div>
+          <div className="text-xs uppercase tracking-wide text-white/60">
+            {variant === "contract" ? "Contract" : "Token"}
+          </div>
+          <div className="text-white">
+            {displayName}{" "}
+            {variant === "token" && token?.symbol ? `(${token.symbol})` : ""}
+          </div>
         </div>
         <div>
           <div className="text-xs uppercase tracking-wide text-white/60">Contract Address</div>
@@ -43,6 +61,18 @@ export function TokenOverview({
           <div className="text-xs uppercase tracking-wide text-white/60">Contract Deployer</div>
           <div className="font-mono break-all text-white">{deployer ?? "Unknown"}</div>
         </div>
+        {variant === "contract" ? (
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-center">
+              <p className="uppercase tracking-wide text-white/60">Verified</p>
+              <p className="font-semibold text-white">{isVerified ? "Yes" : "No"}</p>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-center">
+              <p className="uppercase tracking-wide text-white/60">Source</p>
+              <p className="font-semibold text-white">{sourceAvailable ? "Loaded" : "Unavailable"}</p>
+            </div>
+          </div>
+        ) : null}
       </div>
     </CardContainer>
   );
