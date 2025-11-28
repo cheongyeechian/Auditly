@@ -257,6 +257,7 @@ export default function HomeClient() {
         securityRows,
         address,
         chainLabel: selectedChain.label,
+        aiInsight,
       });
       const filename = `auditly-${analysis.token?.symbol ?? address}-report.pdf`;
       doc.save(filename);
@@ -599,19 +600,34 @@ function generateReportPdf({
   securityRows,
   address,
   chainLabel,
+  aiInsight,
 }: {
   analysis: AnalysisResponse;
   indicatorItems: IndicatorItemForExport[];
   securityRows: SecurityRow[];
   address: string;
   chainLabel: string;
+  aiInsight: string | null;
 }) {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
-  const margin = 40;
-  const usableWidth = doc.internal.pageSize.getWidth() - margin * 2;
+  const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = 40;
+  const usableWidth = pageWidth - margin * 2;
   let cursorY = margin;
-  const lineHeight = 16;
+  
+  // Brand Colors
+  const colors = {
+    primary: [255, 167, 48], // #ffa730 - Brand Orange
+    primaryLight: [255, 248, 235], // Very light orange for backgrounds
+    secondary: [27, 20, 7], // Dark background equivalent
+    text: [30, 30, 30], // Dark text
+    textLight: [100, 100, 100],
+    success: [34, 197, 94], // Green
+    warning: [245, 158, 11], // Amber
+    error: [239, 68, 68], // Red
+    border: [230, 230, 230],
+  };
 
   const ensureSpace = (height: number) => {
     if (cursorY + height > pageHeight - margin) {
@@ -620,133 +636,267 @@ function generateReportPdf({
     }
   };
 
-  const addLineBreaks = (count = 1) => {
-    const height = count * lineHeight;
-    ensureSpace(height);
-    cursorY += height;
-  };
+  const addHeader = () => {
+    // Top Bar
+    doc.setFillColor(colors.primary[0], colors.primary[1], colors.primary[2]);
+    doc.rect(0, 0, pageWidth, 8, "F");
+    
+    cursorY += 25;
 
-  const addHeading = (text: string) => {
-    addLineBreaks();
-    ensureSpace(30);
-    doc.setFont("timesnewroman", "bold");
-    doc.setFontSize(18);
-    doc.text(text, margin, cursorY);
-    cursorY += 26;
-    doc.setFont("timesnewroman", "normal");
+    // Title
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(28);
+    doc.setTextColor(colors.text[0], colors.text[1], colors.text[2]);
+    doc.text("Auditly Report", margin, cursorY);
+    
+    // Date and Chain info
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(colors.textLight[0], colors.textLight[1], colors.textLight[2]);
+    const now = new Date().toLocaleString();
+    doc.text(`Generated: ${now}`, pageWidth - margin, cursorY - 8, { align: "right" });
+    doc.text(`${chainLabel} Network`, pageWidth - margin, cursorY + 5, { align: "right" });
+    
+    cursorY += 25;
+    
+    // Address Box
+    doc.setFillColor(250, 250, 250);
+    doc.setDrawColor(colors.border[0], colors.border[1], colors.border[2]);
+    doc.roundedRect(margin, cursorY, usableWidth, 30, 4, 4, "FD");
+    doc.setFont("courier", "normal");
     doc.setFontSize(11);
+    doc.setTextColor(60, 60, 60);
+    doc.text(address, margin + 10, cursorY + 19);
+    
+    cursorY += 50;
   };
 
-  const addSubheading = (text: string) => {
-    ensureSpace(24);
-    doc.setFont("timesnewroman", "bold");
-    doc.setFontSize(13);
-    doc.text(text, margin, cursorY);
-    cursorY += 18;
-    doc.setFont("timesnewroman", "normal");
-    doc.setFontSize(11);
+  addHeader();
+
+  // --- Risk Score Section ---
+  const riskLabel = analysis.riskScore?.label ?? "Unknown";
+  const riskScore = analysis.riskScore?.score ?? 0;
+  let riskColor = colors.success;
+  if (riskLabel === "Medium") riskColor = colors.warning;
+  if (riskLabel === "High") riskColor = colors.error;
+
+  // Risk Card Background
+  doc.setFillColor(riskColor[0], riskColor[1], riskColor[2]);
+  doc.roundedRect(margin, cursorY, usableWidth, 60, 6, 6, "F");
+  
+  // Score Title
+  doc.setTextColor(255, 255, 255);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(16);
+  doc.text("RISK SCORE", margin + 20, cursorY + 37);
+  
+  // Score Value
+  doc.setFontSize(32);
+  doc.text(`${riskScore}/100`, pageWidth - margin - 20, cursorY + 40, { align: "right" });
+  
+  // Score Label
+  doc.setFontSize(14);
+  doc.text(riskLabel.toUpperCase(), pageWidth - margin - 140, cursorY + 37, { align: "right" });
+  
+  cursorY += 90;
+
+
+  // Helper for section titles
+  const addSectionTitle = (title: string) => {
+    ensureSpace(40);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(16);
+    doc.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
+    doc.text(title, margin, cursorY);
+    doc.setDrawColor(colors.primary[0], colors.primary[1], colors.primary[2]);
+    doc.setLineWidth(2);
+    doc.line(margin, cursorY + 8, margin + 40, cursorY + 8); 
+    cursorY += 30;
+    doc.setTextColor(colors.text[0], colors.text[1], colors.text[2]); 
   };
 
-  const addParagraph = (text: string) => {
-    const lines = doc.splitTextToSize(text, usableWidth);
-    const blockHeight = lines.length * lineHeight;
-    ensureSpace(blockHeight);
-    doc.text(lines, margin, cursorY);
-    cursorY += blockHeight + 8;
-  };
-
-  const addList = (items: string[], emptyFallback = "Not available.") => {
-    if (!items.length) {
-      addParagraph(emptyFallback);
-      return;
-    }
-    for (const item of items) {
-      const lines = doc.splitTextToSize(`• ${item}`, usableWidth);
-      const blockHeight = lines.length * lineHeight;
-      ensureSpace(blockHeight);
-      doc.text(lines, margin, cursorY);
-      cursorY += blockHeight;
-    }
-    cursorY += 8;
-  };
-
-  const addKeyValue = (entries: Array<[string, string]>) => {
-    for (const [label, value] of entries) {
-      const content = `${label}: ${value}`;
-      const lines = doc.splitTextToSize(content, usableWidth);
-      const blockHeight = lines.length * lineHeight;
-      ensureSpace(blockHeight);
-      doc.text(lines, margin, cursorY);
-      cursorY += blockHeight;
-    }
-    cursorY += 6;
-  };
-
-  const now = new Date().toLocaleString();
-  doc.setFont("timesnewroman", "bold");
-  doc.setFontSize(20);
-  doc.text("Auditly Smart Contract Report", margin, cursorY);
-  cursorY += 28;
-  doc.setFont("timesnewroman", "normal");
+  // --- Token Info ---
+  addSectionTitle("Asset Overview");
+  doc.setFont("helvetica", "normal");
   doc.setFontSize(11);
-  addParagraph(`Chain: ${chainLabel} | Address: ${address}`);
-  addParagraph(`Generated: ${now}`);
+  
+  const infoData = [
+    [`Name: ${analysis.token?.name ?? "Unknown"}`, `Symbol: ${analysis.token?.symbol ?? "N/A"}`],
+    [`Price: ${formatNumber(analysis.token?.priceUsd)}`, `Supply: ${analysis.token?.totalSupplyFormatted ?? "N/A"}`],
+    [`Type: ${analysis.metadata?.addressType === "contract" ? "Contract" : "Token"}`, `Verified: ${analysis.metadata?.isVerified ? "Yes" : "No"}`]
+  ];
 
+  // Simple grid layout for info
+  infoData.forEach(row => {
+    doc.text(row[0], margin, cursorY);
+    doc.text(row[1], margin + usableWidth / 2, cursorY);
+    cursorY += 20;
+  });
+  cursorY += 20;
 
-  addHeading("Token Overview");
-  addKeyValue([
-    ["Token Name", analysis.token?.name ?? "Unknown"],
-    ["Symbol", analysis.token?.symbol ?? "N/A"],
-    ["Price (USD)", formatNumber(analysis.token?.priceUsd)],
-    ["Total Supply", analysis.token?.totalSupplyFormatted ?? analysis.token?.totalSupply ?? "N/A"],
-  ]);
+  // --- AI Insight Section ---
+  if (aiInsight) {
+    addSectionTitle("AI Smart Contract Analysis");
+    
+    // AI Insight Card
+    doc.setFillColor(colors.primaryLight[0], colors.primaryLight[1], colors.primaryLight[2]);
+    doc.setDrawColor(colors.primary[0], colors.primary[1], colors.primary[2]);
+    
+    // Prepare text first to calculate height
+    const aiLines = aiInsight
+        .split(/\n/)
+        .map(line => 
+          line
+            .replace(/^[\s*•\-]+/, "") // Remove existing bullets
+            .replace(/^\*\*/, "").replace(/\*\*$/, "") // Remove markdown bold
+            .trim()
+        )
+        .filter(line => {
+           if (line.length === 0) return false;
+           if (/^[\s*]+$/.test(line)) return false;
+           if (/^(here'?s?|this is|the following|below|i found|security analysis|potential risks)/i.test(line)) return false;
+           if (/focusing (solely )?on/i.test(line)) return false;
+           if (/provided smart contract/i.test(line)) return false;
+           return true;
+        });
 
-  addHeading("Summary");
-  addParagraph(`Rating: ${analysis.summary?.rating ?? "N/A"}`);
-  addSubheading("Key Findings");
-  addList(analysis.summary?.keyFindings ?? [], "No key findings were reported.");
-  addSubheading("Positive Signals");
-  addList(analysis.summary?.goodSigns ?? [], "No positive indicators were highlighted.");
+    const cardPadding = 15;
+    const textWidth = usableWidth - (cardPadding * 2);
+    let totalTextHeight = 0;
+    const lineSpacing = 18;
+    
+    // Calculate height
+    const processedLines = aiLines.map(line => {
+        const wrapped = doc.splitTextToSize(line, textWidth - 10); // -10 for bullet indent
+        const h = wrapped.length * 14; // font size approx height
+        totalTextHeight += h + 8; // +8 for paragraph gap
+        return wrapped;
+    });
 
-  addHeading("Risk Score");
-  addParagraph(`Overall Score: ${analysis.riskScore?.score ?? 0} (${analysis.riskScore?.label ?? "Unknown"} Risk)`);
+    const boxHeight = totalTextHeight + (cardPadding * 2);
+    
+    ensureSpace(boxHeight);
 
-  addHeading("Core Indicators");
-  indicatorItems.forEach((item) => {
-    const line = `${item.title} — ${item.status.toUpperCase()} :: ${item.hint ?? item.explanation ?? "No explanation provided."}`;
-    addParagraph(line);
+    // Draw the box
+    doc.roundedRect(margin, cursorY, usableWidth, boxHeight, 6, 6, "F");
+    doc.setLineWidth(1);
+    doc.roundedRect(margin, cursorY, usableWidth, boxHeight, 6, 6, "S"); // Border
+
+    let textCursor = cursorY + cardPadding + 10;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(11);
+    doc.setTextColor(colors.text[0], colors.text[1], colors.text[2]);
+
+    // Draw Title inside box
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
+    doc.text("AI GENERATED INSIGHTS", margin + cardPadding, textCursor - 5);
+    textCursor += 10;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(11);
+    doc.setTextColor(colors.text[0], colors.text[1], colors.text[2]);
+
+    processedLines.forEach((wrappedText: string[]) => {
+        // Draw custom bullet
+        doc.setFillColor(colors.primary[0], colors.primary[1], colors.primary[2]);
+        doc.circle(margin + cardPadding + 3, textCursor - 4, 2, "F");
+        
+        doc.text(wrappedText, margin + cardPadding + 12, textCursor);
+        textCursor += (wrappedText.length * 14) + 8;
+    });
+
+    cursorY += boxHeight + 30;
+  }
+
+  // --- Key Findings ---
+  addSectionTitle("Key Security Findings");
+  
+  const findings = analysis.summary?.keyFindings?.filter(f => f.trim()) ?? [];
+  if (findings.length === 0) {
+     doc.setFont("helvetica", "italic");
+     doc.setTextColor(colors.success[0], colors.success[1], colors.success[2]);
+     doc.text("No major security exposures detected.", margin, cursorY);
+     cursorY += 20;
+  } else {
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(colors.text[0], colors.text[1], colors.text[2]);
+    findings.forEach(item => {
+        const text = item;
+        const split = doc.splitTextToSize(text, usableWidth - 20);
+        ensureSpace(split.length * 16);
+        
+        // Bullet
+        doc.setFillColor(colors.warning[0], colors.warning[1], colors.warning[2]);
+        doc.circle(margin + 4, cursorY - 4, 2.5, "F");
+        
+        doc.text(split, margin + 15, cursorY);
+        cursorY += split.length * 16 + 8;
+    });
+  }
+  cursorY += 20;
+
+  // --- Detailed Indicators ---
+  addSectionTitle("Detailed Analysis");
+  
+  indicatorItems.forEach(item => {
+    ensureSpace(60);
+    
+    // Status Indicator logic
+    let statusColor = colors.textLight;
+    let statusText = "UNKNOWN";
+    
+    if (item.status === "pass") { statusColor = colors.success; statusText = "PASS"; }
+    else if (item.status === "fail") { statusColor = colors.error; statusText = "HIGH RISK"; }
+    else if (item.status === "warn") { statusColor = colors.warning; statusText = "WARNING"; }
+
+    // Row Background
+    doc.setFillColor(252, 252, 252);
+    doc.roundedRect(margin, cursorY - 15, usableWidth, 30, 4, 4, "F"); // Fix height/radius/style
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.setTextColor(40, 40, 40);
+    doc.text(item.title, margin, cursorY);
+    
+    doc.setFontSize(11);
+    doc.setTextColor(statusColor[0], statusColor[1], statusColor[2]);
+    doc.text(statusText, pageWidth - margin, cursorY, { align: "right" });
+    
+    cursorY += 18;
+    
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(80, 80, 80);
+    const desc = item.hint || item.explanation || "No details.";
+    const splitDesc = doc.splitTextToSize(desc, usableWidth);
+    doc.text(splitDesc, margin, cursorY);
+    
+    cursorY += splitDesc.length * 14 + 15;
+    
+    // Thin Divider
+    doc.setDrawColor(240, 240, 240);
+    doc.setLineWidth(1);
+    doc.line(margin, cursorY - 10, pageWidth - margin, cursorY - 10);
   });
 
-  addHeading("Detailed Findings");
-  const findings = securityRows.map(
-    (row) => `${row.title} [${row.status.toUpperCase()}] — ${row.category}: ${row.description}`,
-  );
-  addList(findings, "No detailed findings available.");
+  // --- Footer ---
+  const pageCount = (doc as any).internal.getNumberOfPages();
+  for(let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    
+    // Footer Line
+    doc.setDrawColor(colors.primary[0], colors.primary[1], colors.primary[2]);
+    doc.setLineWidth(2);
+    doc.line(0, pageHeight - 6, pageWidth, pageHeight - 6);
 
-  addHeading("Holder Distribution");
-  addKeyValue([
-    ["Holder Count", analysis.holders?.holderCount?.toString() ?? "Unknown"],
-    ["Total Supply", analysis.holders?.totalSupplyFormatted ?? analysis.holders?.totalSupply ?? "Unknown"],
-    ["Top Holder", formatPercent(analysis.holders?.topHolderPercent)],
-    ["Top 10 Holders", formatPercent(analysis.holders?.topTenPercent)],
-    ["Deployer Share", formatPercent(analysis.holders?.deployerPercent)],
-    ["Owner Share", formatPercent(analysis.holders?.ownerPercent)],
-  ]);
-
-  addHeading("Top Holders");
-  const topHolderLines =
-    analysis.holders?.top?.map((holder, index) => {
-      const tag = holder.tag ? ` (${holder.tag})` : "";
-      return `${index + 1}. ${holder.address} — ${holder.percent?.toFixed(2) ?? "0"}%${tag}`;
-    }) ?? [];
-  addList(topHolderLines, "Top holder details unavailable.");
-
-  addHeading("Contract Metadata");
-  addKeyValue([
-    ["Deployer", analysis.metadata?.deployer ?? "Unknown"],
-    ["Owner / Admin", analysis.metadata?.ownerAddress ?? analysis.metadata?.proxyAdmin ?? "Unknown"],
-    ["Proxy Implementation", analysis.metadata?.proxyImplementation ?? "None"],
-  ]);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(150, 150, 150);
+    doc.text(`Page ${i} of ${pageCount} | Generated by Auditly`, pageWidth / 2, pageHeight - 20, { align: "center" });
+  }
 
   return doc;
 }
