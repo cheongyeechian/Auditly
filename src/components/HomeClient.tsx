@@ -363,7 +363,7 @@ export default function HomeClient() {
               </div>
             </div>
             <div className="flex-1">
-              <AddressSearch defaultValue="0x1111111111111111111111111111111111111111" onSubmit={setAddress} />
+              <AddressSearch onSubmit={setAddress} />
             </div>
           </div>
 
@@ -372,7 +372,7 @@ export default function HomeClient() {
 
       {!hasAddress ? (
         <div className="w-full space-y-10 animate-in fade-in slide-in-from-bottom-8 duration-700 fill-mode-forwards">
-          <section className="w-full rounded-3xl border border-white/10 bg-white/5 p-8 text-white shadow-2xl backdrop-blur-md transition-all duration-500 hover:border-[#ffa730]/20">
+          <section className="w-full rounded-3xl border border-white/13 bg-white/7 p-8 text-white shadow-2xl backdrop-blur-md transition-all duration-500 hover:border-[#ffa730]/20">
             <div className="flex flex-col gap-8">
               <div className="flex-col space-y-4">
                 <div className="flex items-center gap-2">

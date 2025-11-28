@@ -66,7 +66,7 @@ export default function AddressSearch({ defaultValue, onSubmit }: AddressSearchP
             inputMode="text"
             autoComplete="off"
             spellCheck={false}
-            placeholder="0x1111… or 0x2222…"
+            placeholder="Enter address"
             aria-invalid={!!error}
             aria-describedby="address-error"
             className="w-full pl-10 pr-3 py-3 rounded-xl border border-white/10 bg-white/5 backdrop-blur-md text-white placeholder:text-white/40 text-sm md:text-base focus:outline-none focus:ring-2 focus:ring-[var(--accent)] transition-all duration-200 focus:bg-white/10 shadow-inner"
