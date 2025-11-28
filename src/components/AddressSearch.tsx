@@ -56,7 +56,7 @@ export default function AddressSearch({ defaultValue, onSubmit }: AddressSearchP
       <label htmlFor="address" className="sr-only">
         Ethereum address
       </label>
-      <div className="flex items-stretch gap-2">
+      <div className="flex items-start gap-2">
         <div className="relative flex-1">
           <Search aria-hidden className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-white/60" />
           <input
@@ -74,6 +74,17 @@ export default function AddressSearch({ defaultValue, onSubmit }: AddressSearchP
             onChange={(e) => setInput(e.target.value.trim())}
             onBlur={() => setTouched(true)}
           />
+          <div className="absolute left-0 top-full  text-sm min-h-[1.25rem]" aria-live="polite">
+            {error ? (
+              <p id="address-error" role="alert" className="text-red-500">
+                {error}
+              </p>
+            ) : (
+              <span id="address-error" className="sr-only">
+                Address OK
+              </span>
+            )}
+          </div>
         </div>
         <button
           type="submit"
@@ -84,11 +95,6 @@ export default function AddressSearch({ defaultValue, onSubmit }: AddressSearchP
           Analyze
         </button>
       </div>
-      {error ? (
-        <p id="address-error" role="alert" className="mt-2 text-sm text-red-600">
-          {error}
-        </p>
-      ) : null}
     </form>
   );
 }
