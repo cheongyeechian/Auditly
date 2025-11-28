@@ -389,7 +389,7 @@ export default function HomeClient() {
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-60 pointer-events-none z-10" />
                 <video
                   className="aspect-video w-full object-cover opacity-90 transition-opacity duration-500 group-hover:opacity-100"
-                  src="/demo.mov"
+                  src="/demo.mp4"
                   controls
                   playsInline
                   loop
