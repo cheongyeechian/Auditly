@@ -177,14 +177,29 @@ export async function POST(request: Request) {
         ? `${cleanedSource.slice(0, MAX_SOURCE_LENGTH)}\n\n/* ... source truncated for AI processing ... */`
         : cleanedSource;
 
-    // Build a very concise prompt - ask for SHORT response to avoid MAX_TOKENS
-    const prompt = `Smart contract security check for "${contractName}". Reply in 2 sentences max.
+    // Build a concise prompt - ask for bullet points focused on RISKS only
+    const prompt = `You are a neutral smart contract reviewer explaining capabilities to regular users.
+
+RULES:
+- Output ONLY bullet points, one risk per line
+- Start each line with "- " (dash space)
+- Be NEUTRAL and FACTUAL - describe what the contract CAN do, not what it WILL do
+- Do NOT assume malicious intent - avoid words like "steal", "malicious", "attack"
+- Use phrases like "has the ability to", "can", "is able to" instead of "will", "could steal"
+- Use PLAIN ENGLISH - NO function names, NO technical jargon
+- Example good: "An admin has the ability to upgrade this contract to a new version"
+- Example good: "The owner can withdraw funds from this contract"
+- Example bad: "The owner could steal all your funds"
+- Example bad: "Attackers could exploit this to drain your wallet"
+- If no notable capabilities, output: - Standard contract with no unusual permissions
+
+Contract: ${contractName}
 
 \`\`\`
 ${trimmedSource}
 \`\`\`
 
-Risks:`;
+Capabilities:`;
 
     console.log("[Gemini API] Sending prompt to Gemini...");
     console.log("[Gemini API] Prompt length:", prompt.length, "chars");
@@ -192,13 +207,28 @@ Risks:`;
 
     // Helper function to call Gemini API
     async function callGemini(sourceCode: string): Promise<{ summary: string; success: boolean }> {
-      const shortPrompt = `Security check for "${contractName}". 2 sentences max.
+      const riskPrompt = `You are a neutral smart contract reviewer explaining capabilities to regular users.
+
+RULES:
+- Output ONLY bullet points, one risk per line
+- Start each line with "- " (dash space)
+- Be NEUTRAL and FACTUAL - describe what the contract CAN do, not what it WILL do
+- Do NOT assume malicious intent - avoid words like "steal", "malicious", "attack"
+- Use phrases like "has the ability to", "can", "is able to" instead of "will", "could steal"
+- Use PLAIN ENGLISH - NO function names, NO technical jargon
+- Example good: "An admin has the ability to upgrade this contract to a new version"
+- Example good: "The owner can withdraw funds from this contract"
+- Example bad: "The owner could steal all your funds"
+- Example bad: "Attackers could exploit this to drain your wallet"
+- If no notable capabilities, output: - Standard contract with no unusual permissions
+
+Contract: ${contractName}
 
 \`\`\`
 ${sourceCode}
 \`\`\`
 
-Risks:`;
+Capabilities:`;
 
       const response = await fetch(GEMINI_ENDPOINT, {
         method: "POST",
@@ -207,10 +237,10 @@ Risks:`;
           "x-goog-api-key": apiKey!, // apiKey is checked at the top of the handler
         },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: shortPrompt }] }],
+          contents: [{ parts: [{ text: riskPrompt }] }],
           generationConfig: {
             temperature: 0.3,
-            maxOutputTokens: 300,
+            maxOutputTokens: 400,
           },
         }),
       });

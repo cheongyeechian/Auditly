@@ -476,7 +476,7 @@ export default function HomeClient() {
               {resolvedAddressType === "contract" ? (
                 <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/80">
                   <p className="font-semibold text-white">
-                    {metadata?.isVerified ? "Verified contract" : "Unverified contract"}
+                    {metadata?.isVerified ? "✅ Verified contract" : "❌ Unverified contract"}
                   </p>
                   <p className="text-white/60">
                     {metadata?.sourceCode

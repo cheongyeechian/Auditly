@@ -648,12 +648,9 @@ function analyzeProxy(info: ExplorerContractInfo | null): FindingDetail {
   const hasOwner = Boolean(info.proxyAdmin && info.proxyAdmin !== "0x0000000000000000000000000000000000000000");
   const penalty = hasOwner ? Math.min(12, metadata.maxPenalty) : 5;
   const status: RiskStatus = hasOwner ? "WARN" : "WARN";
-  const reason = hasOwner
-    ? "Upgradeable proxy with admin that can change logic at any time."
-    : "Proxy detected, but admin address appears renounced.";
 
   return buildFinding("proxy", status, {
-    reason,
+    reason: "Proxy detected, but admin address appears renounced.",
     penalty,
     evidence: {
       implementation: info.implementation,

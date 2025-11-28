@@ -78,7 +78,32 @@ export default function SummaryBlock({
               ) : aiStatus === "error" ? (
                 <p className="mt-2 text-red-300">Could not generate AI summary.</p>
               ) : aiInsight ? (
-                <p className="mt-2 whitespace-pre-line">{aiInsight}</p>
+                <ul className="mt-3 space-y-2">
+                  {aiInsight
+                    .split(/\n/)
+                    .map((line) => 
+                      line
+                        .replace(/^[\s*•\-]+/, "") // Remove leading bullets/dashes/asterisks
+                        .replace(/^\*\*/, "")      // Remove leading bold markdown
+                        .replace(/\*\*$/, "")      // Remove trailing bold markdown
+                        .trim()
+                    )
+                    .filter((line) => {
+                      // Filter out empty lines and unwanted content
+                      if (line.length === 0) return false;
+                      if (/^[\s*]+$/.test(line)) return false; // Only asterisks/spaces
+                      if (/^(here'?s?|this is|the following|below|i found|security analysis|potential risks)/i.test(line)) return false;
+                      if (/focusing (solely )?on/i.test(line)) return false;
+                      if (/provided smart contract/i.test(line)) return false;
+                      return true;
+                    })
+                    .map((line, idx) => (
+                      <li key={idx} className="flex items-start gap-3">
+                        <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-amber-400" />
+                        <span className="text-white/80">{line}</span>
+                      </li>
+                    ))}
+                </ul>
               ) : null}
             </div>
           ) : null}
