@@ -10,7 +10,6 @@ import { HolderInformation, ProxyAddresses, TokenOverview } from "@/components/O
 import SummaryBlock from "@/components/SummaryBlock";
 import { GradientCard } from "@/components/ui/GradientCard";
 import { BackgroundGradientAnimation } from "@/components/ui/background-gradient";
-import { GridPattern } from "@/components/ui/GridPattern";
 import { ChevronDown, ShieldCheck, AlertTriangle } from "lucide-react";
 import type { AnalysisResponse, IndicatorKey } from "@/types/analysis";
 
@@ -258,13 +257,6 @@ export default function HomeClient() {
     <div className="relative min-h-screen w-full overflow-x-hidden  text-white selection:bg-[#ffa730]/30">
       <div className="fixed inset-0 z-0 pointer-events-none">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_var(--tw-gradient-stops))] from-[#ffa730]/15 via-black/0 to-black/0" />
-        <GridPattern
-          width={50}
-          height={50}
-          x={-1}
-          y={-1}
-          className="opacity-[0.2] [mask-image:radial-gradient(800px_circle_at_center,white,transparent)]"
-        />
       </div>
       <div className="relative z-10 w-full max-w-5xl mx-auto flex flex-col items-center gap-6 py-8 md:py-10 transition-all duration-300 px-4">
       <div className={`flex w-full flex-col items-center gap-6 ${hasAddress ? "" : "text-center"}`}>
