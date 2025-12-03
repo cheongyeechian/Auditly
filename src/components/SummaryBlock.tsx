@@ -47,7 +47,7 @@ export default function SummaryBlock({
       </div>
       <div className="relative z-10 flex flex-col gap-8 md:flex-row md:items-center">
         <div className="flex-1 space-y-4">
-          <p className="text-md font-semibold uppercase tracking-[0.5em] text-[#f6d488]/80">Summary</p>
+          <p className="text-md md:text-lg font-semibold uppercase tracking-[0.5em] text-[#f6d488]/80">Summary</p>
           <h2 className="text-2xl font-bold md:text-3xl">{headline}</h2>
           <p className="text-sm md:text-base text-white/80">{bodyCopy}</p>
           <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-white/80">

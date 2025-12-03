@@ -1,12 +1,6 @@
 export type SupportedChain = "ethereum" | "base" | "polygon" | "bsc";
 
-export type IndicatorKey =
-  | "verifiedSource"
-  | "proxy"
-  | "ownerPrivileges"
-  | "dangerousFunctions"
-  | "liquidity"
-  | "holderDistribution";
+export type IndicatorKey = "verifiedSource" | "proxy" | "ownerPrivileges" | "dangerousFunctions";
 
 export type RiskStatus = "PASS" | "WARN" | "FAIL";
 

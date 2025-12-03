@@ -51,12 +51,6 @@ interface ExplorerContractInfo {
   sourceCode: string | null;
 }
 
-type RawHolderRow = {
-  address: string | null;
-  percent: number;
-  tag?: string | null;
-};
-
 interface TokenProfile {
   tokenName: string | null;
   priceUsd: number | null;
@@ -196,20 +190,6 @@ const indicatorMetadata: Record<
     explanation: "Functions like mint, burn or emergency withdraw can impact supply or funds.",
     goodMessage: "No red-flag functions detected.",
     maxPenalty: 30,
-  },
-  liquidity: {
-    title: "Liquidity Status",
-    category: "Market Safety",
-    explanation: "Centralized LP ownership can make rugs easier.",
-    goodMessage: "Liquidity ownership looks diversified.",
-    maxPenalty: 20,
-  },
-  holderDistribution: {
-    title: "Holder Distribution",
-    category: "Supply Concentration",
-    explanation: "Whales that control supply can move markets or pause trading.",
-    goodMessage: "No single holder controls a large share of supply.",
-    maxPenalty: 25,
   },
 };
 
@@ -375,6 +355,9 @@ export async function analyzeContract(input: AnalyzeInput): Promise<AnalysisResp
     safeReadContract<number>(client, checksumAddress, "decimals"),
     safeReadContract<bigint>(client, checksumAddress, "totalSupply"),
   ]);
+  if (requestedKind === "contract" && (!bytecode || bytecode === "0x")) {
+    throw new AnalyzerError("This address does not contain contract bytecode. Enter a deployed contract address.", 400);
+  }
 
   const [explorerInfo, tokenProfile, contractCreation] = await Promise.all([
     fetchContractInfo(chainKey, checksumAddress),
@@ -399,7 +382,7 @@ export async function analyzeContract(input: AnalyzeInput): Promise<AnalysisResp
     resolvedKind = autoTokenEvidence ? "token" : "contract";
   } else if (requestedKind === "token" && !autoTokenEvidence) {
     throw new AnalyzerError(
-      "This address does not look like an ERC-20 token. Switch to contract mode to continue.",
+      "Check the address network or switch to contract mode to continue.",
       400,
     );
   } else if (requestedKind === "contract") {
@@ -409,9 +392,7 @@ export async function analyzeContract(input: AnalyzeInput): Promise<AnalysisResp
   }
 
   const shouldCollectTokenMetrics = resolvedKind === "token";
-  const holders = shouldCollectTokenMetrics
-    ? await fetchTopHolders(chainKey, checksumAddress, totalSupply, decimals)
-    : [];
+  const holders: HolderRecord[] = [];
 
   const findings = runFindings({
     bytecode,
@@ -422,7 +403,8 @@ export async function analyzeContract(input: AnalyzeInput): Promise<AnalysisResp
     isTokenContract: shouldCollectTokenMetrics,
   });
 
-  const totalPenalty = Object.values(findings).reduce((sum, item) => sum + item.penalty, 0);
+  const scoringIndicators: IndicatorKey[] = ["verifiedSource", "proxy", "ownerPrivileges", "dangerousFunctions"];
+  const totalPenalty = scoringIndicators.reduce((sum, key) => sum + (findings[key]?.penalty ?? 0), 0);
   const score = Math.max(0, 100 - totalPenalty);
   const label = scoreToLabel(score);
 
@@ -600,44 +582,6 @@ async function fetchContractInfo(chain: SupportedChain, address: Address): Promi
   }
 }
 
-async function fetchTopHolders(
-  chain: SupportedChain,
-  address: Address,
-  _totalSupply?: bigint | null,
-  _decimals?: number | null,
-): Promise<HolderRecord[]> {
-  const config = chainConfigs[chain];
-  const url = buildExplorerUrl(config, {
-    module: "token",
-    action: "tokenholderlist",
-    contractaddress: address,
-    page: "1",
-    offset: "10",
-  });
-
-  try {
-    const res = await fetch(url, { cache: "no-store" });
-    if (!res.ok) return [];
-    const json = (await res.json()) as ExplorerResponse<ExplorerHolderResult[]>;
-    if (json.status === "0" || !Array.isArray(json.result)) return [];
-    const parsed: RawHolderRow[] = json.result.map((row) => ({
-      address: safeAddress(row.TokenHolderAddress ?? row.HolderAddress ?? row.Address) ?? null,
-      percent: toNumber(row.Percentage),
-      tag: row.TokenHolderAddressTag ?? row.AddressTag ?? null,
-    }));
-
-    return parsed
-      .filter((row): row is RawHolderRow & { address: string } => Boolean(row.address))
-      .map((row) => ({
-        address: row.address,
-        percent: row.percent,
-        tag: row.tag ?? null,
-      }));
-  } catch {
-    return [];
-  }
-}
-
 async function fetchTokenProfile(chain: SupportedChain, address: Address): Promise<TokenProfile | null> {
   const config = chainConfigs[chain];
   const url = buildExplorerUrl(config, {
@@ -697,26 +641,11 @@ function runFindings(context: {
   const proxy = analyzeProxy(context.explorerInfo, context.bytecode);
   const ownerPrivileges = analyzeOwnerPrivileges(context.abi, context.bytecode);
   const dangerousFunctions = analyzeDangerousFunctions(context.abi, context.bytecode, ownerPrivileges);
-  const liquidity = context.isTokenContract
-    ? analyzeLiquidity(context.holders)
-    : buildFinding("liquidity", "PASS", {
-        reason: "Liquidity checks are only applicable to ERC-20 tokens.",
-        penalty: 0,
-      });
-  const holderDistribution = context.isTokenContract
-    ? analyzeHolderDistribution(context.holders)
-    : buildFinding("holderDistribution", "PASS", {
-        reason: "Holder distribution applies only to fungible tokens.",
-        penalty: 0,
-      });
-
   return {
     verifiedSource,
     proxy,
     ownerPrivileges,
     dangerousFunctions,
-    liquidity,
-    holderDistribution,
   };
 }
 
@@ -1051,74 +980,6 @@ function detectDangerousOpcodes(bytecode: Hex | null): Array<{ name: string; ris
   return findings;
 }
 
-function analyzeLiquidity(holders: HolderRecord[]): FindingDetail {
-  const metadata = indicatorMetadata.liquidity;
-  if (!holders.length) {
-    return buildFinding("liquidity", "WARN", {
-      reason: "Liquidity holder data not available.",
-      penalty: 10,
-    });
-  }
-
-  const lpHolder = holders.find((holder) =>
-    holder.tag ? /lp|liquidity|uni|pancake|pair/i.test(holder.tag) : false,
-  );
-
-  if (!lpHolder) {
-    return buildFinding("liquidity", "WARN", {
-      reason: "Could not identify LP ownership; assume unlocked.",
-      penalty: 10,
-    });
-  }
-
-  if (lpHolder.percent >= 50) {
-    return buildFinding("liquidity", "FAIL", {
-      reason: "Single wallet controls more than 50% of LP tokens.",
-      penalty: metadata.maxPenalty,
-    });
-  }
-
-  if (lpHolder.percent >= 20) {
-    return buildFinding("liquidity", "WARN", {
-      reason: "LP ownership is concentrated (20-50%).",
-      penalty: 10,
-    });
-  }
-
-  return buildFinding("liquidity", "PASS", {
-    reason: "LP tokens appear distributed.",
-    penalty: 0,
-  });
-}
-
-function analyzeHolderDistribution(holders: HolderRecord[]): FindingDetail {
-  const metadata = indicatorMetadata.holderDistribution;
-  if (!holders.length) {
-    return buildFinding("holderDistribution", "WARN", {
-      reason: "Holder distribution unavailable.",
-      penalty: 10,
-    });
-  }
-
-  const topHolder = holders[0];
-  if (topHolder.percent > 40) {
-    return buildFinding("holderDistribution", "FAIL", {
-      reason: "Single wallet controls over 40% of supply.",
-      penalty: metadata.maxPenalty,
-    });
-  }
-  if (topHolder.percent >= 20) {
-    return buildFinding("holderDistribution", "WARN", {
-      reason: "Top holder controls 20-40% of supply.",
-      penalty: 10,
-    });
-  }
-  return buildFinding("holderDistribution", "PASS", {
-    reason: "No single holder owns more than 20% of supply.",
-    penalty: 0,
-  });
-}
-
 function summarizeHolders(
   holders: HolderRecord[],
   options?: { holderCountOverride?: number | null; deployer?: string | null; owner?: string | null },
@@ -1246,16 +1107,6 @@ type ExplorerSourceResult = {
   SwarmSource: string;
   ContractCreator: string;
   ProxyCreator?: string;
-};
-
-type ExplorerHolderResult = {
-  TokenHolderAddress?: string;
-  TokenHolderAddressTag?: string | null;
-  TokenHolderQuantity?: string;
-  Percentage?: string;
-  HolderAddress?: string;
-  Address?: string;
-  AddressTag?: string;
 };
 
 type ExplorerTokenInfoResult = {

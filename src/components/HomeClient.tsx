@@ -5,7 +5,6 @@ import { jsPDF } from "jspdf";
 import AddressSearch from "@/components/AddressSearch";
 import RiskScoreCard from "@/components/RiskScoreCard";
 import IndicatorsGrid from "@/components/IndicatorsGrid";
-import TopHoldersTable from "@/components/TopHoldersTable";
 import SecurityFindings from "@/components/SecurityFindings";
 import { HolderInformation, ProxyAddresses, TokenOverview } from "@/components/OverviewCards";
 import SummaryBlock from "@/components/SummaryBlock";
@@ -17,14 +16,7 @@ import type { AnalysisResponse, IndicatorKey } from "@/types/analysis";
 
 type Status = "pass" | "warn" | "fail";
 
-const INDICATOR_ORDER: IndicatorKey[] = [
-  "verifiedSource",
-  "proxy",
-  "ownerPrivileges",
-  "dangerousFunctions",
-  "liquidity",
-  "holderDistribution",
-];
+const INDICATOR_ORDER: IndicatorKey[] = ["verifiedSource", "proxy", "ownerPrivileges", "dangerousFunctions"];
 
 const INDICATOR_COPY: Record<IndicatorKey, { title: string; description: string }> = {
   verifiedSource: {
@@ -42,14 +34,6 @@ const INDICATOR_COPY: Record<IndicatorKey, { title: string; description: string 
   dangerousFunctions: {
     title: "Dangerous Functions",
     description: "Mint/burn and emergency withdraw functions can alter supply or drain funds.",
-  },
-  liquidity: {
-    title: "Liquidity Status",
-    description: "Locked and distributed liquidity reduces rug risk.",
-  },
-  holderDistribution: {
-    title: "Holder Distribution",
-    description: "Large holder concentration can manipulate price or halt trading.",
   },
 };
 
@@ -192,7 +176,14 @@ export default function HomeClient() {
     };
   }, [analysis?.metadata?.sourceCode, analysis?.metadata?.isVerified, analysis?.metadata?.contractName, analysis?.token?.name, address]);
 
-  const indicatorItems = INDICATOR_ORDER.map((key) => {
+  const metadata = analysis?.metadata;
+  const resolvedAddressType = metadata?.addressType ?? (analysisMode === "contract" ? "contract" : "token");
+  const isTokenView = resolvedAddressType === "token";
+  const displayedIndicatorOrder = INDICATOR_ORDER;
+  const holderStats = analysis?.holders;
+  const priceUsd = analysis?.token?.priceUsd ?? null;
+
+  const indicatorItems = displayedIndicatorOrder.map((key) => {
     const copy = INDICATOR_COPY[key];
     const datum = analysis?.findings?.[key];
     return {
@@ -205,7 +196,7 @@ export default function HomeClient() {
   });
 
   const securityRows = analysis
-    ? INDICATOR_ORDER.map((key) => {
+    ? displayedIndicatorOrder.map((key) => {
         const finding = analysis.findings[key];
         return {
           title: INDICATOR_COPY[key].title,
@@ -216,15 +207,9 @@ export default function HomeClient() {
       })
     : [];
 
-  const metadata = analysis?.metadata;
-  const holderStats = analysis?.holders;
-  const priceUsd = analysis?.token?.priceUsd ?? null;
-  const resolvedAddressType = metadata?.addressType ?? (analysisMode === "contract" ? "contract" : "token");
-  const holders = resolvedAddressType === "token" ? analysis?.holders?.top ?? [] : [];
-
   // Detect if the token doesn't exist (only applies when analyzing as token)
   const tokenNotFound =
-    resolvedAddressType === "token" &&
+    isTokenView &&
     !isLoading &&
     !error &&
     analysis &&
@@ -442,6 +427,16 @@ export default function HomeClient() {
                 </div>
               </div>
             </div>
+          ) : error ? (
+            <div className="rounded-2xl border border-red-500/40 bg-red-500/10 px-6 py-4 text-red-200">
+              <div className="flex items-center gap-3">
+                <AlertTriangle className="h-5 w-5 text-red-400 flex-shrink-0" />
+                <div>
+                  <p className="font-semibold text-red-100">Unable to analyze this address</p>
+                  <p className="text-sm text-red-200/80 mt-1">{error}</p>
+                </div>
+              </div>
+            </div>
           ) : (
             <>
               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -456,11 +451,6 @@ export default function HomeClient() {
                       <span className="text-[#ffa730] font-semibold">{resolvedAddressType}</span>
                     </div>
                   </div>
-                  {error ? (
-                    <div className="rounded-2xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-                      {error}
-                    </div>
-                  ) : null}
                   {isLoading ? (
                     <div className="text-sm text-white/60">Fetching latest on-chain data...</div>
                   ) : null}
@@ -489,20 +479,13 @@ export default function HomeClient() {
               {/* Header row: token info | centered risk | mistake form */}
               <div className="grid grid-cols-1 items-stretch gap-4 md:grid-cols-2">
                 <GradientCard
-                  title={resolvedAddressType === "contract" ? "Contract" : "Token"}
+                  title={resolvedAddressType === "contract" ? "Contract:" : "Token:"}
                   contentClassName="mt-2 space-y-1"
                 >
-                  <div className="text-sm text-white/80">
-                    {analysis?.token?.name ??
-                      metadata?.contractName ??
-                      (resolvedAddressType === "contract" ? "Unknown contract" : "Unknown token")}
-                  </div>
-                  <div className="text-sm font-medium text-white">
-                    {analysis?.token?.symbol ?? (resolvedAddressType === "contract" ? "N/A" : "N/A")}
-                  </div>
-                  <div className="pt-2 text-sm text-white/60">Price (USD)</div>
-                  <div className="text-sm text-white">
-                    {typeof priceUsd === "number" ? `$${priceUsd.toFixed(4)}` : "Unknown"}
+                  <div className="text-lg md:text-3xl font-bold text-white/80">
+                    {isTokenView
+                      ? analysis?.token?.name ?? "Unknown Token"
+                      : metadata?.contractName ?? "Unknown Contract"}
                   </div>
                 </GradientCard>
                 <div className="flex justify-center">
@@ -543,7 +526,7 @@ export default function HomeClient() {
                   implementation={metadata?.proxyImplementation ?? null}
                   owner={metadata?.proxyAdmin ?? metadata?.ownerAddress ?? null}
                 />
-                {resolvedAddressType === "token" ? (
+                {isTokenView ? (
                   <HolderInformation
                     holderCount={holderStats?.holderCount ?? null}
                     totalSupply={holderStats?.totalSupplyFormatted ?? holderStats?.totalSupply ?? null}
@@ -551,19 +534,10 @@ export default function HomeClient() {
                     ownerShare={holderStats?.ownerPercent ?? null}
                     topTenPercent={holderStats?.topTenPercent ?? null}
                   />
-                ) : (
-                  <div className="rounded-2xl border border-white/20 bg-black/90 p-5 text-sm text-white/70">
-                    Holder metrics are only shown for fungible tokens.
-                  </div>
-                )}
+                ) : null}
               </div>
 
               {/* Extras */}
-              {resolvedAddressType === "token" && holders.length ? (
-                <div>
-                  <TopHoldersTable holders={holders} />
-                </div>
-              ) : null}
             </>
           )}
         </section>
@@ -644,13 +618,13 @@ function generateReportPdf({
     cursorY += 25;
 
     // Title
-    doc.setFont("helvetica", "bold");
+    doc.setFont("times", "bold");
     doc.setFontSize(28);
     doc.setTextColor(colors.text[0], colors.text[1], colors.text[2]);
     doc.text("Auditly Report", margin, cursorY);
     
     // Date and Chain info
-    doc.setFont("helvetica", "normal");
+    doc.setFont("times", "normal");
     doc.setFontSize(10);
     doc.setTextColor(colors.textLight[0], colors.textLight[1], colors.textLight[2]);
     const now = new Date().toLocaleString();
@@ -663,13 +637,16 @@ function generateReportPdf({
     doc.setFillColor(250, 250, 250);
     doc.setDrawColor(colors.border[0], colors.border[1], colors.border[2]);
     doc.roundedRect(margin, cursorY, usableWidth, 30, 4, 4, "FD");
-    doc.setFont("courier", "normal");
+    doc.setFont("times", "normal");
     doc.setFontSize(11);
     doc.setTextColor(60, 60, 60);
     doc.text(address, margin + 10, cursorY + 19);
     
     cursorY += 50;
   };
+
+  // Default to Times New Roman–style font for the whole report
+  doc.setFont("times", "normal");
 
   addHeader();
 
@@ -686,7 +663,7 @@ function generateReportPdf({
   
   // Score Title
   doc.setTextColor(255, 255, 255);
-  doc.setFont("helvetica", "bold");
+  doc.setFont("times", "bold");
   doc.setFontSize(16);
   doc.text("RISK SCORE", margin + 20, cursorY + 37);
   
@@ -704,7 +681,7 @@ function generateReportPdf({
   // Helper for section titles
   const addSectionTitle = (title: string) => {
     ensureSpace(40);
-    doc.setFont("helvetica", "bold");
+    doc.setFont("times", "bold");
     doc.setFontSize(16);
     doc.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
     doc.text(title, margin, cursorY);
@@ -717,19 +694,24 @@ function generateReportPdf({
 
   // --- Token Info ---
   addSectionTitle("Asset Overview");
-  doc.setFont("helvetica", "normal");
+  doc.setFont("times", "normal");
   doc.setFontSize(11);
   
-  const infoData = [
+  const infoData: [string, string][] = [
     [`Name: ${analysis.token?.name ?? "Unknown"}`, `Symbol: ${analysis.token?.symbol ?? "N/A"}`],
-    [`Price: ${formatNumber(analysis.token?.priceUsd)}`, `Supply: ${analysis.token?.totalSupplyFormatted ?? "N/A"}`],
-    [`Type: ${analysis.metadata?.addressType === "contract" ? "Contract" : "Token"}`, `Verified: ${analysis.metadata?.isVerified ? "Yes" : "No"}`]
+    [
+      `Supply: ${analysis.token?.totalSupplyFormatted ?? "N/A"}`,
+      `Type: ${analysis.metadata?.addressType === "contract" ? "Contract" : "Token"}`,
+    ],
+    [`Verified: ${analysis.metadata?.isVerified ? "Yes" : "No"}`, ""],
   ];
 
-  // Simple grid layout for info
-  infoData.forEach(row => {
-    doc.text(row[0], margin, cursorY);
-    doc.text(row[1], margin + usableWidth / 2, cursorY);
+  // Simple grid layout for info (left + optional right column)
+  infoData.forEach(([left, right]) => {
+    doc.text(left, margin, cursorY);
+    if (right && right.trim().length > 0) {
+      doc.text(right, margin + usableWidth / 2, cursorY);
+    }
     cursorY += 20;
   });
   cursorY += 20;
@@ -784,18 +766,18 @@ function generateReportPdf({
 
     let textCursor = cursorY + cardPadding + 10;
 
-    doc.setFont("helvetica", "normal");
+    doc.setFont("times", "normal");
     doc.setFontSize(11);
     doc.setTextColor(colors.text[0], colors.text[1], colors.text[2]);
 
     // Draw Title inside box
-    doc.setFont("helvetica", "bold");
+    doc.setFont("times", "bold");
     doc.setFontSize(10);
     doc.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
     doc.text("AI GENERATED INSIGHTS", margin + cardPadding, textCursor - 5);
     textCursor += 10;
 
-    doc.setFont("helvetica", "normal");
+    doc.setFont("times", "normal");
     doc.setFontSize(11);
     doc.setTextColor(colors.text[0], colors.text[1], colors.text[2]);
 
@@ -816,24 +798,26 @@ function generateReportPdf({
   
   const findings = analysis.summary?.keyFindings?.filter(f => f.trim()) ?? [];
   if (findings.length === 0) {
-     doc.setFont("helvetica", "italic");
+     doc.setFont("times", "italic");
      doc.setTextColor(colors.success[0], colors.success[1], colors.success[2]);
      doc.text("No major security exposures detected.", margin, cursorY);
      cursorY += 20;
   } else {
-    doc.setFont("helvetica", "normal");
+    doc.setFont("times", "normal");
     doc.setTextColor(colors.text[0], colors.text[1], colors.text[2]);
+    doc.setFontSize(11);
     findings.forEach(item => {
         const text = item;
         const split = doc.splitTextToSize(text, usableWidth - 20);
-        ensureSpace(split.length * 16);
+        // Match Asset Overview body size (11pt) for line spacing
+        ensureSpace(split.length * 14);
         
         // Bullet
         doc.setFillColor(colors.warning[0], colors.warning[1], colors.warning[2]);
         doc.circle(margin + 4, cursorY - 4, 2.5, "F");
         
         doc.text(split, margin + 15, cursorY);
-        cursorY += split.length * 16 + 8;
+        cursorY += split.length * 14 + 8;
     });
   }
   cursorY += 20;
@@ -856,7 +840,7 @@ function generateReportPdf({
     doc.setFillColor(252, 252, 252);
     doc.roundedRect(margin, cursorY - 15, usableWidth, 30, 4, 4, "F"); // Fix height/radius/style
 
-    doc.setFont("helvetica", "bold");
+    doc.setFont("times", "bold");
     doc.setFontSize(12);
     doc.setTextColor(40, 40, 40);
     doc.text(item.title, margin, cursorY);
@@ -867,7 +851,7 @@ function generateReportPdf({
     
     cursorY += 18;
     
-    doc.setFont("helvetica", "normal");
+    doc.setFont("times", "normal");
     doc.setFontSize(10);
     doc.setTextColor(80, 80, 80);
     const desc = item.hint || item.explanation || "No details.";
@@ -892,7 +876,7 @@ function generateReportPdf({
     doc.setLineWidth(2);
     doc.line(0, pageHeight - 6, pageWidth, pageHeight - 6);
 
-    doc.setFont("helvetica", "normal");
+    doc.setFont("times", "normal");
     doc.setFontSize(8);
     doc.setTextColor(150, 150, 150);
     doc.text(`Page ${i} of ${pageCount} | Generated by Auditly`, pageWidth / 2, pageHeight - 20, { align: "center" });
