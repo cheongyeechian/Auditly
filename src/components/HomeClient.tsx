@@ -500,10 +500,6 @@ export default function HomeClient() {
                 </div>
               </div>
               
-              <div>
-                  <IndicatorsGrid items={indicatorItems} />
-              </div>
-
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-stretch">
                 <TokenOverview
                   address={address!}
