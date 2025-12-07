@@ -10,15 +10,8 @@ import {
   http,
   isAddress,
 } from "viem";
-import { base, bsc, mainnet, polygon, type Chain } from "viem/chains";
-import type {
-  AnalysisResponse,
-  FindingDetail,
-  HolderRecord,
-  IndicatorKey,
-  RiskStatus,
-  SupportedChain,
-} from "@/types/analysis";
+import { base, bsc, mainnet, polygon, scroll, arbitrum, type Chain } from "viem/chains";
+import type { AnalysisResponse, FindingDetail, HolderRecord, IndicatorKey, RiskStatus, SupportedChain } from "@/types/analysis";
 
 interface AnalyzeInput {
   chain: string;
@@ -128,6 +121,32 @@ const chainConfigs: Record<SupportedChain, ChainConfig> = {
       apiKey: process.env.ETHERSCAN_API_KEY,
       apiEnvHints: ["ETHERSCAN_API_KEY"],
       chainId: 56,
+    },
+  },
+  scroll: {
+    slug: "scroll",
+    displayName: "Scroll",
+    chain: scroll,
+    rpcUrl: `https://scroll-mainnet.g.alchemy.com/v2/${defaultAlchemyKey}`,
+    rpcEnvHints: ["ALCHEMY_API_KEY"],
+    explorer: {
+      baseUrl: "https://api.etherscan.io/v2/api",
+      apiKey: process.env.ETHERSCAN_API_KEY,
+      apiEnvHints: ["ETHERSCAN_API_KEY"],
+      chainId: 534352,
+    },
+  },
+  arbitrum: {
+    slug: "arbitrum",
+    displayName: "Arbitrum",
+    chain: arbitrum,
+    rpcUrl: `https://arb-mainnet.g.alchemy.com/v2/${defaultAlchemyKey}`,
+    rpcEnvHints: ["ALCHEMY_API_KEY"],
+    explorer: {
+      baseUrl: "https://api.etherscan.io/v2/api",
+      apiKey: process.env.ETHERSCAN_API_KEY,
+      apiEnvHints: ["ETHERSCAN_API_KEY"],
+      chainId: 42161,
     },
   },
 };
@@ -503,6 +522,7 @@ function normalizeChain(chain?: string): SupportedChain | null {
   if (normalized === "base") return "base";
   if (normalized === "polygon" || normalized === "matic") return "polygon";
   if (normalized === "bsc" || normalized === "bnb") return "bsc";
+  if (normalized === "scroll") return "scroll";
   return null;
 }
 

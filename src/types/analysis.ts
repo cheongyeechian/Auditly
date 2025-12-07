@@ -1,4 +1,4 @@
-export type SupportedChain = "ethereum" | "base" | "polygon" | "bsc";
+export type SupportedChain = "ethereum" | "base" | "polygon" | "bsc" | "scroll" | "arbitrum";
 
 export type IndicatorKey = "verifiedSource" | "proxy" | "ownerPrivileges" | "dangerousFunctions";
 

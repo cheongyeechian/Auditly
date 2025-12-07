@@ -41,6 +41,8 @@ const CHAIN_OPTIONS = [
   { label: "Base", value: "base" },
   { label: "BSC", value: "bsc" },
   { label: "Polygon", value: "polygon" },
+  { label: "Scroll", value: "scroll" },
+  { label: "Arbitrum", value: "arbitrum" },
 ] as const;
 
 const ANALYSIS_MODES = [
