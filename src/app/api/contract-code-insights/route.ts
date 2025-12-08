@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 
-// Gemini API endpoint - using gemini-2.0-flash (not 2.5) to avoid "thinking" token overhead
-// gemini-2.5-flash uses internal "thinking" tokens that consume the output budget
-// Reference: https://ai.google.dev/gemini-api/docs/api-key
-const GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
+// RedPill (OpenAI-compatible) configuration
+// Docs: https://docs.redpill.ai/quickstart
+const REDPILL_BASE_URL ="https://api.redpill.ai/v1";
+const REDPILL_MODEL = "google/gemini-2.5-flash-lite"; // Gemini via RedPill gateway
 
 /**
  * Clean up source code for AI consumption:
@@ -147,9 +147,9 @@ function cleanSourceCode(rawSource: string, contractName?: string): string {
 
 export async function POST(request: Request) {
   try {
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = process.env.REDPILL_API_KEY;
     if (!apiKey) {
-      return NextResponse.json({ error: "GEMINI_API_KEY is not configured." }, { status: 500 });
+      return NextResponse.json({ error: "REDPILL_API_KEY is not configured." }, { status: 500 });
     }
 
     const body = await request.json();
@@ -165,12 +165,10 @@ export async function POST(request: Request) {
     const cleanedSource = cleanSourceCode(rawSourceCode, contractName);
 
     // Log the source code being sent to AI
-    console.log("[Gemini API] Source code length:", cleanedSource.length);
-    console.log("[Gemini API] Source code preview (first 1000 chars):", cleanedSource.slice(0, 1000));
+    console.log("[RedPill] Source code length:", cleanedSource.length);
+    console.log("[RedPill] Source code preview (first 1000 chars):", cleanedSource.slice(0, 1000));
 
-    // Truncate source code aggressively - Gemini 2.5 Flash uses "thinking" tokens
-    // which can consume the entire budget on large contracts
-    // Keep source under 00 chars (~2000 tokens) to ensure response room
+    // Truncate source code to leave headroom for the model response
     const MAX_SOURCE_LENGTH = 8000;
     const trimmedSource =
       cleanedSource.length > MAX_SOURCE_LENGTH
@@ -201,12 +199,12 @@ ${trimmedSource}
 
 Capabilities:`;
 
-    console.log("[Gemini API] Sending prompt to Gemini...");
-    console.log("[Gemini API] Prompt length:", prompt.length, "chars");
-    console.log("[Gemini API] Source length (trimmed):", trimmedSource.length, "chars");
+    console.log("[RedPill] Sending prompt to RedPill...");
+    console.log("[RedPill] Prompt length:", prompt.length, "chars");
+    console.log("[RedPill] Source length (trimmed):", trimmedSource.length, "chars");
 
-    // Helper function to call Gemini API
-    async function callGemini(sourceCode: string): Promise<{ summary: string; success: boolean }> {
+    // Helper function to call RedPill (OpenAI-compatible chat completions)
+    async function callRedPill(sourceCode: string): Promise<{ summary: string; success: boolean }> {
       const riskPrompt = `You are a neutral smart contract reviewer explaining capabilities to regular users.
 
 RULES:
@@ -230,72 +228,51 @@ ${sourceCode}
 
 Capabilities:`;
 
-      const response = await fetch(GEMINI_ENDPOINT, {
+      const response = await fetch(`${REDPILL_BASE_URL}/chat/completions`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-goog-api-key": apiKey!, // apiKey is checked at the top of the handler
+          Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: riskPrompt }] }],
-          generationConfig: {
-            temperature: 0.3,
-            maxOutputTokens: 400,
-          },
+          model: REDPILL_MODEL,
+          messages: [
+            {
+              role: "user",
+              content: riskPrompt,
+            },
+          ],
+          temperature: 0.3,
+          max_tokens: 800,
         }),
       });
 
       const data = await response.json();
-      console.log("[Gemini API] Response status:", response.status);
-      console.log("[Gemini API] Full response:", JSON.stringify(data, null, 2));
-
+      console.log("[RedPill] Response status:", response.status);
       if (!response.ok) {
-        console.error("[Gemini] error response", data);
+        console.error("[RedPill] Error response:", JSON.stringify(data, null, 2));
         return { summary: "", success: false };
       }
 
-      const finishReason = data?.candidates?.[0]?.finishReason;
-      const parts = data?.candidates?.[0]?.content?.parts;
-      let summary = "";
+      const summary =
+        data?.choices?.[0]?.message?.content?.trim?.() ||
+        data?.choices?.[0]?.message?.content ||
+        "";
 
-      if (Array.isArray(parts) && parts.length > 0) {
-        summary = parts.map((p: { text?: string }) => p.text || "").join("").trim();
-      }
-
-      console.log("[Gemini API] Finish reason:", finishReason, "| Summary length:", summary.length);
-
-      // If MAX_TOKENS with no content, it failed
-      if (finishReason === "MAX_TOKENS" && !summary) {
-        return { summary: "", success: false };
-      }
-
-      return { summary, success: !!summary };
+      console.log("[RedPill] Summary length:", summary.length);
+      return { summary, success: Boolean(summary) };
     }
 
-    // Try with full source first
-    console.log("[Gemini API] Attempt 1: Using trimmed source (" + trimmedSource.length + " chars)");
-    let result = await callGemini(trimmedSource);
-
-    // If failed, retry with even shorter source (first 3000 chars)
-    if (!result.success && trimmedSource.length > 3000) {
-      console.log("[Gemini API] Attempt 2: Retrying with shorter source (3000 chars)");
-      const shorterSource = trimmedSource.slice(0, 3000) + "\n\n/* ... truncated ... */";
-      result = await callGemini(shorterSource);
-    }
-
-    // If still failed, try with just the first 1500 chars
-    if (!result.success && trimmedSource.length > 1500) {
-      console.log("[Gemini API] Attempt 3: Retrying with minimal source (1500 chars)");
-      const minimalSource = trimmedSource.slice(0, 1500) + "\n\n/* ... truncated ... */";
-      result = await callGemini(minimalSource);
-    }
+    // Single attempt via RedPill gateway
+    console.log("[RedPill] Attempt: Using trimmed source (" + trimmedSource.length + " chars)");
+    const result = await callRedPill(trimmedSource);
 
     // Final fallback
     const summary = result.success 
       ? result.summary 
       : "This is a verified contract. Manual review recommended for detailed security analysis.";
 
-    console.log("[Gemini API] ✅ Final summary:", summary);
+    console.log("[RedPill] ✅ Final summary:", summary);
 
     return NextResponse.json({ summary });
   } catch (error) {

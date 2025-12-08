@@ -523,6 +523,7 @@ function normalizeChain(chain?: string): SupportedChain | null {
   if (normalized === "polygon" || normalized === "matic") return "polygon";
   if (normalized === "bsc" || normalized === "bnb") return "bsc";
   if (normalized === "scroll") return "scroll";
+  if (normalized === "arbitrum") return "arbitrum";
   return null;
 }
 
