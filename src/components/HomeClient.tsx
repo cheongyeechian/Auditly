@@ -10,7 +10,7 @@ import { HolderInformation, ProxyAddresses, TokenOverview } from "@/components/O
 import SummaryBlock from "@/components/SummaryBlock";
 import { GradientCard } from "@/components/ui/GradientCard";
 import { BackgroundGradientAnimation } from "@/components/ui/background-gradient";
-import { ChevronDown, ShieldCheck, AlertTriangle } from "lucide-react";
+import { ChevronDown, ShieldCheck, AlertTriangle, Loader2 } from "lucide-react";
 import type { AnalysisResponse, IndicatorKey } from "@/types/analysis";
 
 type Status = "pass" | "warn" | "fail";
@@ -408,7 +408,18 @@ export default function HomeClient() {
 
       {hasAddress ? (
         <section className="w-full space-y-6" aria-label="Risk summary">
-          {tokenNotFound ? (
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center py-20 space-y-6">
+              <div className="relative">
+                <Loader2 className="h-16 w-16 text-[#ffa730] animate-spin" />
+                <div className="absolute inset-0 bg-[#ffa730]/20 rounded-full blur-xl animate-pulse" />
+              </div>
+              <div className="text-center space-y-2">
+                <h3 className="text-xl font-semibold text-white">Reading address details...</h3>
+                <p className="text-sm text-white/60">Fetching latest on-chain data from {selectedChain.label}</p>
+              </div>
+            </div>
+          ) : tokenNotFound ? (
             <div className="rounded-2xl border border-amber-500/40 bg-amber-500/10 px-6 py-4 text-amber-200">
               <div className="flex items-center gap-3">
                 <AlertTriangle className="h-5 w-5 text-amber-400 flex-shrink-0" />
@@ -445,9 +456,6 @@ export default function HomeClient() {
                       <span className="text-[#ffa730] font-semibold">{resolvedAddressType}</span>
                     </div>
                   </div>
-                  {isLoading ? (
-                    <div className="text-sm text-white/60">Fetching latest on-chain data...</div>
-                  ) : null}
                 </div>
                 <button
                   type="button"
