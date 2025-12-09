@@ -753,37 +753,40 @@ function generateReportPdf({
         return wrapped;
     });
 
-    const boxHeight = totalTextHeight + (cardPadding * 2);
+    const boxHeight = totalTextHeight + (cardPadding * 2) + 30; // Extra space for title
     
     ensureSpace(boxHeight);
 
-    // Draw the box
+    // Draw the box with light cream background
+    doc.setFillColor(colors.primaryLight[0], colors.primaryLight[1], colors.primaryLight[2]);
     doc.roundedRect(margin, cursorY, usableWidth, boxHeight, 6, 6, "F");
+    
+    // Draw orange border
+    doc.setDrawColor(colors.primary[0], colors.primary[1], colors.primary[2]);
     doc.setLineWidth(1);
-    doc.roundedRect(margin, cursorY, usableWidth, boxHeight, 6, 6, "S"); // Border
+    doc.roundedRect(margin, cursorY, usableWidth, boxHeight, 6, 6, "S");
 
-    let textCursor = cursorY + cardPadding + 10;
+    let textCursor = cursorY + cardPadding + 20;
 
-    doc.setFont("times", "normal");
-    doc.setFontSize(11);
-    doc.setTextColor(colors.text[0], colors.text[1], colors.text[2]);
-
-    // Draw Title inside box
+    // Draw Title inside box (orange color)
     doc.setFont("times", "bold");
     doc.setFontSize(10);
     doc.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
-    doc.text("AI GENERATED INSIGHTS", margin + cardPadding, textCursor - 5);
-    textCursor += 10;
+    doc.text("AI GENERATED INSIGHTS", margin + cardPadding, textCursor);
+    textCursor += 20;
 
+    // Set text color to dark for content
     doc.setFont("times", "normal");
     doc.setFontSize(11);
     doc.setTextColor(colors.text[0], colors.text[1], colors.text[2]);
 
     processedLines.forEach((wrappedText: string[]) => {
-        // Draw custom bullet
+        // Draw custom bullet (orange)
         doc.setFillColor(colors.primary[0], colors.primary[1], colors.primary[2]);
         doc.circle(margin + cardPadding + 3, textCursor - 4, 2, "F");
         
+        // Ensure text color is dark before drawing
+        doc.setTextColor(colors.text[0], colors.text[1], colors.text[2]);
         doc.text(wrappedText, margin + cardPadding + 12, textCursor);
         textCursor += (wrappedText.length * 14) + 8;
     });
