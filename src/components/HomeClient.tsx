@@ -356,9 +356,9 @@ export default function HomeClient() {
               <div className="flex-col space-y-4">
                 <div className="flex items-center gap-2">
                     <div className="h-8 w-1 bg-[#ffa730] rounded-full" />
-                    <p className="text-md uppercase tracking-wide text-[#ffa730] font-semibold">How it works</p>
+                    <p className="text-md uppercase tracking-wide text-[#ffa730] font-semibold">What is Auditly?</p>
                 </div>
-                <h2 className="text-4xl font-bold tracking-tight">See on-chain red flags in seconds</h2>
+                <h2 className="text-4xl font-bold tracking-tight">AI Security Checks for Any Contract</h2>
                 <p className="text-lg text-white/60 max-w-2xl leading-relaxed">
                   Paste any token contract address and we&apos;ll run automated checks on liquidity, upgradeability,
                   privileged roles, and more. 
