@@ -54,25 +54,10 @@ export default function SummaryBlock({
             <span className="text-[#f6d488]">{rating}</span>
             <span className="text-white/60">{isClean ? "Monitoring" : "Action needed"}</span>
           </div>
-          
-        </div>
-      </div>
-      <div className="relative z-10 mt-10 grid gap-8 md:grid-cols-2">
-        <div className="space-y-6">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-wide text-white/70">Key Findings</p>
-            <ul className="mt-3 space-y-2 text-sm text-white/80">
-              {keyFindings.map((item, idx) => (
-                <li key={`${item}-${idx}`} className="flex items-start gap-3 rounded-2xl border border-white/5 bg-white/5 px-4 py-3">
-                  <span className="mt-1 h-1.5 w-1.5 rounded-full bg-[#f6d488]" />
-                  <span className="text-white/80">{item}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-          {aiStatus !== "idle" ? (
+                      {aiStatus !== "idle" ? (
             <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/80">
-              <p className="text-xs font-semibold uppercase tracking-wide text-white/60">AI Contract Review</p>
+              <p className="text-sm md:text-base font-semibold uppercase tracking-wide text-[#f8ce73]">Gemini 2.5 Contract Review</p>
               {aiStatus === "loading" ? (
                 <p className="mt-2 text-white/60">Gemini is reviewing the verified source code…</p>
               ) : aiStatus === "error" ? (
@@ -107,6 +92,24 @@ export default function SummaryBlock({
               ) : null}
             </div>
           ) : null}
+          </div>
+          
+        </div>
+      </div>
+      <div className="relative z-10 mt-10 grid gap-8 md:grid-cols-2">
+        <div className="space-y-6">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-wide text-white/70">Key Findings</p>
+            <ul className="mt-3 space-y-2 text-sm text-white/80">
+              {keyFindings.map((item, idx) => (
+                <li key={`${item}-${idx}`} className="flex items-start gap-3 rounded-2xl border border-white/5 bg-white/5 px-4 py-3">
+                  <span className="mt-1 h-1.5 w-1.5 rounded-full bg-[#f6d488]" />
+                  <span className="text-white/80">{item}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
         </div>
         <div>
           <p className="text-sm font-semibold uppercase tracking-wide text-white/70">Good Signs</p>
