@@ -424,7 +424,17 @@ export async function analyzeContract(input: AnalyzeInput): Promise<AnalysisResp
 
   const scoringIndicators: IndicatorKey[] = ["verifiedSource", "proxy", "ownerPrivileges", "dangerousFunctions"];
   const totalPenalty = scoringIndicators.reduce((sum, key) => sum + (findings[key]?.penalty ?? 0), 0);
-  const score = Math.max(0, 100 - totalPenalty);
+  
+  // Apply bonus for verified contracts (reduces penalty)
+  const isVerified = explorerInfo?.isVerified ?? false;
+  const verifiedBonus = isVerified ? 15 : 0; // Give 15 point bonus for verified contracts
+  
+  // Calculate base score
+  const baseScore = Math.max(0, 100 - totalPenalty);
+  
+  // Apply verified bonus (adds to score, effectively reducing penalty impact)
+  const score = Math.min(100, baseScore + verifiedBonus);
+  
   const label = scoreToLabel(score);
 
   const keyFindings = Object.values(findings)
@@ -685,7 +695,7 @@ function analyzeVerifiedSource(info: ExplorerContractInfo | null): FindingDetail
   if (!info) {
     return buildFinding("verifiedSource", "WARN", {
       reason: "Could not confirm verification status from explorer.",
-      penalty: 10,
+      penalty: 8, // Reduced from 10
     });
   }
 
@@ -753,7 +763,7 @@ function analyzeProxy(info: ExplorerContractInfo | null, bytecode: Hex | null = 
   if (hasUpgradeFunction && hasOwner) {
     return buildFinding("proxy", "WARN", {
       reason: "Upgradeable proxy with active admin - contract logic can be changed.",
-      penalty: Math.min(15, metadata.maxPenalty),
+      penalty: Math.min(10, metadata.maxPenalty), // Reduced from 15
       evidence,
     });
   }
@@ -761,12 +771,12 @@ function analyzeProxy(info: ExplorerContractInfo | null, bytecode: Hex | null = 
   if (hasUpgradeFunction) {
     return buildFinding("proxy", "WARN", {
       reason: "Upgrade functions detected in bytecode - contract may be upgradeable.",
-      penalty: 12,
+      penalty: 8, // Reduced from 12
       evidence,
     });
   }
 
-  const penalty = hasOwner ? Math.min(12, metadata.maxPenalty) : 5;
+  const penalty = hasOwner ? Math.min(8, metadata.maxPenalty) : 3; // Reduced penalties
   return buildFinding("proxy", "WARN", {
     reason: hasOwner 
       ? "Proxy detected with active admin." 
@@ -789,27 +799,35 @@ function analyzeOwnerPrivileges(abi: Abi | null, bytecode: Hex | null = null): F
   );
 
   // ===== METHOD 2: Bytecode selector detection (CANNOT be bypassed) =====
-  const ownerSelectors = [
+  // Standard ownership functions that are normal and expected (low risk)
+  const standardOwnershipSelectors = [
     "f2fde38b", // transferOwnership(address)
     "715018a6", // renounceOwnership()
     "8da5cb5b", // owner()
+  ];
+  
+  // Medium risk owner functions
+  const mediumRiskOwnerSelectors = [
     "8456cb59", // pause()
     "3f4ba83a", // unpause()
-    "44337ea1", // blacklist(address)
-    "537df3b6", // unBlacklist(address)
     "c0246668", // setFee(address,bool)
     "8c0b5e22", // setMaxTxAmount(uint256)
     "e01af92c", // setTaxFee(uint256)
     "8ee88c53", // setMaxWalletSize(uint256)
   ];
   
+  // High risk owner functions
   const highRiskOwnerSelectors = [
     "44337ea1", // blacklist(address)
     "537df3b6", // unBlacklist(address)
   ];
   
+  const allOwnerSelectors = [...standardOwnershipSelectors, ...mediumRiskOwnerSelectors, ...highRiskOwnerSelectors];
+  
   const bytecodeHex = bytecode ? bytecode.toLowerCase().replace("0x", "") : "";
-  const detectedSelectors = ownerSelectors.filter((sel) => bytecodeHex.includes(sel));
+  const detectedSelectors = allOwnerSelectors.filter((sel) => bytecodeHex.includes(sel));
+  const detectedStandardSelectors = standardOwnershipSelectors.filter((sel) => bytecodeHex.includes(sel));
+  const detectedMediumRiskSelectors = mediumRiskOwnerSelectors.filter((sel) => bytecodeHex.includes(sel));
   const detectedHighRiskSelectors = highRiskOwnerSelectors.filter((sel) => bytecodeHex.includes(sel));
 
   // Build evidence
@@ -822,9 +840,23 @@ function analyzeOwnerPrivileges(abi: Abi | null, bytecode: Hex | null = null): F
     });
   }
 
-  // Determine risk level
+  // Determine risk level - only penalize non-standard functions
   const hasHighRisk = highRiskKeywordMatches.length > 0 || detectedHighRiskSelectors.length > 0;
-  const hasMediumRisk = keywordMatches.length > 0 || detectedSelectors.length > 0;
+  
+  // Check if keyword matches are only standard ownership functions
+  const standardOwnershipKeywords = ["owner", "transferownership", "renounceownership"];
+  const onlyStandardKeywords = keywordMatches.length > 0 && keywordMatches.every(k => 
+    standardOwnershipKeywords.some(s => k.includes(s))
+  );
+  
+  // Check if only standard ownership selectors are detected
+  const onlyStandardSelectors = detectedSelectors.length > 0 && 
+    detectedSelectors.every(sel => standardOwnershipSelectors.includes(sel)) &&
+    detectedMediumRiskSelectors.length === 0 &&
+    detectedHighRiskSelectors.length === 0;
+  
+  const onlyStandardOwnership = onlyStandardSelectors && (keywordMatches.length === 0 || onlyStandardKeywords);
+  const hasMediumRisk = (!onlyStandardOwnership && keywordMatches.length > 0 && !onlyStandardKeywords) || detectedMediumRiskSelectors.length > 0;
 
   if (hasHighRisk) {
     const reasons = [];
@@ -832,16 +864,25 @@ function analyzeOwnerPrivileges(abi: Abi | null, bytecode: Hex | null = null): F
     if (highRiskKeywordMatches.length) reasons.push(`functions: ${describeKeywords(highRiskKeywordMatches)}`);
     return buildFinding("ownerPrivileges", "WARN", {
       reason: `Owner can restrict addresses: ${reasons.join("; ")}`,
-      penalty: Math.min(18, metadata.maxPenalty),
+      penalty: Math.min(12, metadata.maxPenalty), // Reduced from 18
       evidence,
     });
   }
 
   if (hasMediumRisk) {
-    const count = Math.max(keywordMatches.length, detectedSelectors.length);
+    const count = Math.max(keywordMatches.length, detectedMediumRiskSelectors.length);
     return buildFinding("ownerPrivileges", "WARN", {
       reason: `${count} admin function(s) detected via bytecode/ABI analysis.`,
-      penalty: 8,
+      penalty: 5, // Reduced from 8
+      evidence,
+    });
+  }
+
+  // Standard ownership functions are normal and expected - no penalty
+  if (onlyStandardOwnership) {
+    return buildFinding("ownerPrivileges", "PASS", {
+      reason: "Standard ownership functions detected (normal for most contracts).",
+      penalty: 0,
       evidence,
     });
   }
@@ -849,7 +890,7 @@ function analyzeOwnerPrivileges(abi: Abi | null, bytecode: Hex | null = null): F
   if (!abi && !bytecode) {
     return buildFinding("ownerPrivileges", "WARN", {
       reason: "Cannot inspect owner-only functions because ABI and bytecode unavailable.",
-      penalty: 10,
+      penalty: 6, // Reduced from 10
     });
   }
 
@@ -864,7 +905,7 @@ function analyzeDangerousFunctions(abi: Abi | null, bytecode: Hex | null, ownerF
   if (!abi && !bytecode) {
     return buildFinding("dangerousFunctions", "WARN", {
       reason: "Bytecode/ABI unavailable, cannot scan for red-flag functions.",
-      penalty: 12,
+      penalty: 8, // Reduced from 12
     });
   }
 
@@ -920,7 +961,7 @@ function analyzeDangerousFunctions(abi: Abi | null, bytecode: Hex | null, ownerF
   if (allHighRisk.length === 1) {
     return buildFinding("dangerousFunctions", "WARN", {
       reason: `High-risk capability: ${allHighRisk[0].description}`,
-      penalty: 18,
+      penalty: 12, // Reduced from 18
       evidence,
     });
   }
@@ -929,7 +970,7 @@ function analyzeDangerousFunctions(abi: Abi | null, bytecode: Hex | null, ownerF
     const descriptions = allMediumRisk.slice(0, 3).map((f) => f.description).join("; ");
     return buildFinding("dangerousFunctions", "WARN", {
       reason: `Multiple admin capabilities: ${descriptions}`,
-      penalty: 12,
+      penalty: 8, // Reduced from 12
       evidence,
     });
   }
@@ -940,7 +981,7 @@ function analyzeDangerousFunctions(abi: Abi | null, bytecode: Hex | null, ownerF
       : `Functions: ${describeKeywords(keywordMatches)}`;
     return buildFinding("dangerousFunctions", "WARN", {
       reason: `Admin capability detected: ${desc}`,
-      penalty: 8,
+      penalty: 4, // Reduced from 8
       evidence,
     });
   }
